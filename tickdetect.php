@@ -1,8 +1,11 @@
 <?PHP
-$logfile = 'log/tickdetect.log';
+// include config variables
+include('config.inc.php');
+
+$logfile = $loglocation.$logtickdetect;
 
 // connect to db
-include('../private/db.inc.php');
+include($securedbcreds);
 $con = mysqli_connect($servername,$username,$password,$database) or die("SQL connection error");
 
 $data = json_decode(file_get_contents('https://elitebgs.app/api/ebgs/v4/ticks'), true);

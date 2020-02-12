@@ -1,8 +1,11 @@
 <?PHP
-$logfile = 'log/tickprocessor-'.time().'.log';
+// include config variables
+include('config.inc.php');
+
+$logfile = $loglocation.$logtickprocessor;
 
 // connect to db
-include('../private/db.inc.php');
+include($securedbcreds);
 $con = mysqli_connect($servername,$username,$password,$database) or die("SQL connection error");
 
 /*
