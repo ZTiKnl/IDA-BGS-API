@@ -2,10 +2,8 @@
  webapi for receiving data from the IDA-BGS plugin for EDMC  
 
 ## What it does:  
-This API receives JSON data packages from the IDA-BGS EDMC plugin to track faction data.  
-- [The IDA-BGS EDMC plugin can be found here](https://github.com/ZTiKnl/IDA-BGS)  
-Data sent to the API can be displayed by the FrontEnd website  
-- [The FrontEnd website can be found here](https://github.com/ZTiKnl/IDA-BGS-FrontEnd)  
+This API receives JSON data packages from the [IDA-BGS EDMC plugin](https://github.com/ZTiKnl/IDA-BGS) to track faction data.  
+Data sent to the API can be displayed by the [FrontEnd website](https://github.com/ZTiKnl/IDA-BGS-FrontEnd)  
 
 ## How to use:  
 1. Download the .PHP files to your website  
