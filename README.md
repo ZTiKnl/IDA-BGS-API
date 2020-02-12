@@ -3,7 +3,7 @@
 
 ## What it does:  
 This API receives JSON data packages from the [IDA-BGS EDMC plugin](https://github.com/ZTiKnl/IDA-BGS) to track faction data.  
-Data sent to the API can be displayed by the [FrontEnd website](https://github.com/ZTiKnl/IDA-BGS-FrontEnd)  
+Data sent to the API can be displayed by the [IDA-BGS FrontEnd website](https://github.com/ZTiKnl/IDA-BGS-FrontEnd)  
 
 ## How to use:  
 1. Download the .PHP files to your website  
