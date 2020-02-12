@@ -1,0 +1,10 @@
+<?PHP
+// this file should be placed outside the public folder of your website
+// it is included from '/' as '../private/db.inc.php'
+
+// connect to db
+$servername = "localhost";
+$username = "mysqluser";
+$password = "mysqlpass";
+$database = "ida_bgs";
+?>
