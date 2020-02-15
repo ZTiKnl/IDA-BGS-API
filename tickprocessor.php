@@ -75,7 +75,28 @@ if (!$tickprocessedyet) {
   if ($deleteactivesnapshotsresult = mysqli_query($con, $deleteactivesnapshotsquery)){
     $log .= "Deleted all records in activesnapshot where tickid < ".$newtickid."\n";  
   }
-  // REMOVE OLD DATA FROM CONFLICTDATA, FACTIONDATA, SYSTEMDATA
+
+// update
+  $deletefactiondataquery = "DELETE FROM factiondata WHERE timestamp < '$oldtick'";
+  if ($deletefactiondataresult = mysqli_query($con, $deletefactiondataquery)){
+    $log .= "Deleted all records in factiondata where timestamp < ".$oldtick."\n";  
+  }
+// update
+
+// update
+  $deletesystemdataquery = "DELETE FROM systemdata WHERE timestamp < '$oldtick'";
+  if ($deletesystemdataresult = mysqli_query($con, $deletesystemdataquery)){
+    $log .= "Deleted all records in systemdata where timestamp < ".$oldtick."\n";  
+  }
+// update
+
+// update
+  $deleteconflictdataquery = "DELETE FROM conflictdata WHERE timestamp < '$oldtick'";
+  if ($deleteconflictdataresult = mysqli_query($con, $deleteconflictdataquery)){
+    $log .= "Deleted all records in conflictdata where timestamp < ".$oldtick."\n";  
+  }
+// update
+// do same for systemdata and conflictdata
 
 
   // START SYSTEM DATA GATHERING, final results are stored in array: $tempsystemslist
