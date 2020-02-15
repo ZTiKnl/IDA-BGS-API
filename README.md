@@ -38,4 +38,4 @@ Patches are always welcome.
 - Everybody who helped test the EDMC Plugin (devnull, Optimus Stan)  
 - HammerPiano, wouldnt have gotten the plugin working so fast without your advice  
 - [EliteBGS Tick Bot](https://EliteBGS.app)  
-- Everyone at EDCD: Community Developers Discord channel  
+- Everyone at EDCD: Community Developers Discord channel (Phelbore, Athanasius, Gazelle, tez,  Garud,  T'kael, VerticalBlank, anyone else I missed?)
