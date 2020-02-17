@@ -711,8 +711,8 @@ if($apiresult = mysqli_query($con, $apiquery)){
               $conflictstatus = $conflictdata['Status'];
               if ($conflictstatus == 'active') {
                 $conflictstatus = 'Active';
-              } elseif ($conflicttype == 'pending') {
-                $conflictstatus = 'Active';
+              } elseif ($conflictstatus == 'pending') {
+                $conflictstatus = 'Pending';
               }
               if ($conflicttype == 'war') {
                 $conflicttype = 'War';
