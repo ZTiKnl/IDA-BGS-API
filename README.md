@@ -31,7 +31,6 @@ As far as I am aware, this is the most secure way to store database credentials.
 
 ## Disclaimer
 This API is still under construction, ~~bugs~~ new features WILL appear unexpectedly.  
-There is no license on this code, feel free to use it as you see fit.  
 Patches are always welcome.  
 
 ## Thanks
