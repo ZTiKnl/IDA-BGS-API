@@ -202,6 +202,10 @@ allsystemsoverview
 report
 {
   {
+    "systemscount":23,
+    "systemsupdatodate"=23
+  }.
+  {
     "systemname":"asdasd",
     "systemaddress"="dsadsa",
     "type"="influencedrop",
@@ -229,11 +233,16 @@ report
 */
 if ($requesttype == 'report') {
   $reportdata = array();
-
+  $expansionpending = false;
+  $expansionpendingtrend;
+  $expansionrecovering = false;
+  $expansionrecoveringtrend;
+  $expansionactive = false;
   $systemquery = "SELECT systemname, systemaddress FROM systemlist ORDER BY systemname ASC";
   if ($systemresult = mysqli_query($con, $systemquery)){
     if (mysqli_num_rows($systemresult) > 0) {
       $systemcounter = 0;
+      $systemuptodatecount = 0;
       while($row = mysqli_fetch_array($systemresult, MYSQLI_ASSOC)) {
         $systemname = addslashes($row['systemname']);
         $systemaddress = $row['systemaddress'];
@@ -246,6 +255,7 @@ if ($requesttype == 'report') {
         if ($systemcheckactivesnapshotresult = mysqli_query($con, $systemcheckactivesnapshotquery)){
           if (mysqli_num_rows($systemcheckactivesnapshotresult) > 0) {
             $systemuptodate = true;
+            $systemuptodatecount++;
             while($row2 = mysqli_fetch_array($systemcheckactivesnapshotresult, MYSQLI_ASSOC)) {
               $tickid = $row2['tickid'];
               $systemupdatetime = $row2['timestamp'];
@@ -261,7 +271,8 @@ if ($requesttype == 'report') {
                 }
               } else {
                 $tickid = 'unknown';
-                $systemupdatetime = 'unknown';
+                $systemupdatetime = getlastupdatetime($systemaddress, $con);
+
               }
             }
           }
@@ -323,6 +334,7 @@ if ($requesttype == 'report') {
           $reportdata[] = array(
             "systemname" => $systemname, 
             "systemaddress" => $systemaddress, 
+            "reporttype" => 'influence',
             "type" => $type, 
             "amount" => $systemamount, 
             "total" => $systemtotal, 
@@ -330,7 +342,6 @@ if ($requesttype == 'report') {
             "uptodate" => $uptodate
           );
         }
-
         // INFLUENCE WARNING SYSTEM
 
 
@@ -340,7 +351,7 @@ if ($requesttype == 'report') {
         $conflictdatainactivesnapshot = false;
         $conflictdatainsnapshots = false;
 
-        if (!$systemuptodate) {
+        if ($systemuptodate) {
           $conflictactivesnapshotquery = "SELECT conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays FROM activesnapshot WHERE tickid = '$newtickid' AND isconflict = '1' AND SystemAddress = '$systemaddress' AND (conflictfaction1name = '".$pmfname."' OR conflictfaction2name = '".$pmfname."') ORDER BY tickid DESC";
           if ($conflictactivesnapshotresult = mysqli_query($con, $conflictactivesnapshotquery)){
             if (mysqli_num_rows($conflictactivesnapshotresult) > 0) {
@@ -409,6 +420,7 @@ if ($requesttype == 'report') {
             $reportdata[] = array(
               "systemname" => $systemname, 
               "systemaddress" => $systemaddress, 
+              "reporttype" => 'conflict',
               "type" => $conflicttype, 
               "status" => $conflictstatus,
               "direction" => $direction,
@@ -421,12 +433,443 @@ if ($requesttype == 'report') {
               "updatetime" => $systemupdatetime, 
               "uptodate" => $systemuptodate
             );
-//            print_r($reportdata);
           }
         }
+        // CONFLICT WARNING SYSTEM
+
+
+
+
+
+        // STATE WARNING SYSTEM
+        $statearray = array();
+        $statedatainactivesnapshot = false;
+        $statedatainsnapshots = false;
+
+        if ($systemuptodate) {
+          $stateactivesnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND isfaction = '1' AND factionaddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
+          if ($stateactivesnapshotresult = mysqli_query($con, $stateactivesnapshotquery)){
+            if (mysqli_num_rows($stateactivesnapshotresult) > 0) {
+              $statedatainactivesnapshot = true;
+              $i = 0;
+              while($row3 = mysqli_fetch_array($stateactivesnapshotresult, MYSQLI_ASSOC)) {
+                $statearray[$i]['stateid'] = $row3['id'];
+                $statearray[$i]['statetimestamp'] = $row3['timestamp'];
+                $statearray[$i]['stateName'] = addslashes($row3['Name']);
+                $statearray[$i]['statefactionsystem'] = $row3['factionaddress'];
+                $statearray[$i]['statefactionaddress'] = addslashes($row3['factionsystem']);
+                $statearray[$i]['stateGovernment'] = $row3['Government'];
+                $statearray[$i]['stateInfluence'] = $row3['Influence'];
+                $statearray[$i]['stateAllegiance'] = $row3['Allegiance'];
+                $statearray[$i]['stateHappiness'] = $row3['Happiness'];
+                $statearray[$i]['stateTerroristAttack'] = $row3['stateTerroristAttack'];
+                $statearray[$i]['pendingTerroristAttack'] = $row3['pendingTerroristAttack'];
+                $statearray[$i]['pendingTerroristAttacktrend'] = $row3['pendingTerroristAttacktrend'];
+                $statearray[$i]['recTerroristAttack'] = $row3['recTerroristAttack'];
+                $statearray[$i]['recTerroristAttacktrend'] = $row3['recTerroristAttacktrend'];
+                $statearray[$i]['statePirateAttack'] = $row3['statePirateAttack'];
+                $statearray[$i]['pendingPirateAttack'] = $row3['pendingPirateAttack'];
+                $statearray[$i]['pendingPirateAttacktrend'] = $row3['pendingPirateAttacktrend'];
+                $statearray[$i]['recPirateAttack'] = $row3['recPirateAttack'];
+                $statearray[$i]['recPirateAttacktrend'] = $row3['recPirateAttacktrend'];
+                $statearray[$i]['stateRetreat'] = $row3['stateRetreat'];
+                $statearray[$i]['pendingRetreat'] = $row3['pendingRetreat'];
+                $statearray[$i]['pendingRetreattrend'] = $row3['pendingRetreattrend'];
+                $statearray[$i]['recRetreat'] = $row3['recRetreat'];
+                $statearray[$i]['recRetreattrend'] = $row3['recRetreattrend'];
+                $statearray[$i]['stateLockdown'] = $row3['stateLockdown'];
+                $statearray[$i]['pendingLockdown'] = $row3['pendingLockdown'];
+                $statearray[$i]['pendingLockdowntrend'] = $row3['pendingLockdowntrend'];
+                $statearray[$i]['recLockdown'] = $row3['recLockdown'];
+                $statearray[$i]['recLockdowntrend'] = $row3['recLockdowntrend'];
+                $statearray[$i]['stateFamine'] = $row3['stateFamine'];
+                $statearray[$i]['pendingFamine'] = $row3['pendingFamine'];
+                $statearray[$i]['pendingFaminetrend'] = $row3['pendingFaminetrend'];
+                $statearray[$i]['recFamine'] = $row3['recFamine'];
+                $statearray[$i]['recFaminetrend'] = $row3['recFaminetrend'];
+                $statearray[$i]['stateExpansion'] = $row3['stateExpansion'];
+                $statearray[$i]['pendingExpansion'] = $row3['pendingExpansion'];
+                $statearray[$i]['pendingExpansiontrend'] = $row3['pendingExpansiontrend'];
+                $statearray[$i]['recExpansion'] = $row3['recExpansion'];
+                $statearray[$i]['recExpansiontrend'] = $row3['recExpansiontrend'];
+                $statearray[$i]['stateDrought'] = $row3['stateDrought'];
+                $statearray[$i]['pendingDrought'] = $row3['pendingDrought'];
+                $statearray[$i]['pendingDroughttrend'] = $row3['pendingDroughttrend'];
+                $statearray[$i]['recDrought'] = $row3['recDrought'];
+                $statearray[$i]['recDroughttrend'] = $row3['recDroughttrend'];
+                $statearray[$i]['stateCivilUnrest'] = $row3['stateCivilUnrest'];
+                $statearray[$i]['pendingCivilUnrest'] = $row3['pendingCivilUnrest'];
+                $statearray[$i]['pendingCivilUnresttrend'] = $row3['pendingCivilUnresttrend'];
+                $statearray[$i]['recCivilUnrest'] = $row3['recCivilUnrest'];
+                $statearray[$i]['recCivilUnresttrend'] = $row3['recCivilUnresttrend'];
+                $statearray[$i]['stateBust'] = $row3['stateBust'];
+                $statearray[$i]['pendingBust'] = $row3['pendingBust'];
+                $statearray[$i]['pendingBusttrend'] = $row3['pendingBusttrend'];
+                $statearray[$i]['recBust'] = $row3['recBust'];
+                $statearray[$i]['recBusttrend'] = $row3['recBusttrend'];
+                $statearray[$i]['stateBlight'] = $row3['stateBlight'];
+                $statearray[$i]['pendingBlight'] = $row3['pendingBlight'];
+                $statearray[$i]['pendingBlighttrend'] = $row3['pendingBlighttrend'];
+                $statearray[$i]['recBlight'] = $row3['recBlight'];
+                $statearray[$i]['recBlighttrend'] = $row3['recBlighttrend'];
+                $statearray[$i]['stateTradeWar'] = $row3['stateTradeWar'];
+                $statearray[$i]['pendingTradeWar'] = $row3['pendingTradeWar'];
+                $statearray[$i]['pendingTradeWartrend'] = $row3['pendingTradeWartrend'];
+                $statearray[$i]['recTradeWar'] = $row3['recTradeWar'];
+                $statearray[$i]['recTradeWartrend'] = $row3['recTradeWartrend'];
+                $statearray[$i]['stateColdWar'] = $row3['stateColdWar'];
+                $statearray[$i]['pendingColdWar'] = $row3['pendingColdWar'];
+                $statearray[$i]['pendingColdWartrend'] = $row3['pendingColdWartrend'];
+                $statearray[$i]['recColdWar'] = $row3['recColdWar'];
+                $statearray[$i]['recColdWartrend'] = $row3['recColdWartrend'];
+                $i++;
+              }
+            }
+          }
+        } else {
+          $statesnapshotquery = "SELECT * FROM snapshots WHERE tickid = '$oldtickid' AND isfaction = '1' AND factionaddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
+          if ($statesnapshotresult = mysqli_query($con, $statesnapshotquery)){
+            if (mysqli_num_rows($statesnapshotresult) > 0) {
+              $statedatainsnapshots = true;
+              $i = 0;
+              while($row4 = mysqli_fetch_array($statesnapshotresult, MYSQLI_ASSOC)) {
+                $statearray[$i]['stateid'] = $row4['id'];
+                $statearray[$i]['statetimestamp'] = $row4['timestamp'];
+                $statearray[$i]['stateName'] = addslashes($row4['Name']);
+                $statearray[$i]['statefactionsystem'] = $row4['factionaddress'];
+                $statearray[$i]['statefactionaddress'] = addslashes($row4['factionsystem']);
+                $statearray[$i]['stateGovernment'] = $row4['Government'];
+                $statearray[$i]['stateInfluence'] = $row4['Influence'];
+                $statearray[$i]['stateAllegiance'] = $row4['Allegiance'];
+                $statearray[$i]['stateHappiness'] = $row4['Happiness'];
+                $statearray[$i]['stateTerroristAttack'] = $row4['stateTerroristAttack'];
+                $statearray[$i]['pendingTerroristAttack'] = $row4['pendingTerroristAttack'];
+                $statearray[$i]['pendingTerroristAttacktrend'] = $row4['pendingTerroristAttacktrend'];
+                $statearray[$i]['recTerroristAttack'] = $row4['recTerroristAttack'];
+                $statearray[$i]['recTerroristAttacktrend'] = $row4['recTerroristAttacktrend'];
+                $statearray[$i]['statePirateAttack'] = $row4['statePirateAttack'];
+                $statearray[$i]['pendingPirateAttack'] = $row4['pendingPirateAttack'];
+                $statearray[$i]['pendingPirateAttacktrend'] = $row4['pendingPirateAttacktrend'];
+                $statearray[$i]['recPirateAttack'] = $row4['recPirateAttack'];
+                $statearray[$i]['recPirateAttacktrend'] = $row4['recPirateAttacktrend'];
+                $statearray[$i]['stateRetreat'] = $row4['stateRetreat'];
+                $statearray[$i]['pendingRetreat'] = $row4['pendingRetreat'];
+                $statearray[$i]['pendingRetreattrend'] = $row4['pendingRetreattrend'];
+                $statearray[$i]['recRetreat'] = $row4['recRetreat'];
+                $statearray[$i]['recRetreattrend'] = $row4['recRetreattrend'];
+                $statearray[$i]['stateLockdown'] = $row4['stateLockdown'];
+                $statearray[$i]['pendingLockdown'] = $row4['pendingLockdown'];
+                $statearray[$i]['pendingLockdowntrend'] = $row4['pendingLockdowntrend'];
+                $statearray[$i]['recLockdown'] = $row4['recLockdown'];
+                $statearray[$i]['recLockdowntrend'] = $row4['recLockdowntrend'];
+                $statearray[$i]['stateFamine'] = $row4['stateFamine'];
+                $statearray[$i]['pendingFamine'] = $row4['pendingFamine'];
+                $statearray[$i]['pendingFaminetrend'] = $row4['pendingFaminetrend'];
+                $statearray[$i]['recFamine'] = $row4['recFamine'];
+                $statearray[$i]['recFaminetrend'] = $row4['recFaminetrend'];
+                $statearray[$i]['stateExpansion'] = $row4['stateExpansion'];
+                $statearray[$i]['pendingExpansion'] = $row4['pendingExpansion'];
+                $statearray[$i]['pendingExpansiontrend'] = $row4['pendingExpansiontrend'];
+                $statearray[$i]['recExpansion'] = $row4['recExpansion'];
+                $statearray[$i]['recExpansiontrend'] = $row4['recExpansiontrend'];
+                $statearray[$i]['stateDrought'] = $row4['stateDrought'];
+                $statearray[$i]['pendingDrought'] = $row4['pendingDrought'];
+                $statearray[$i]['pendingDroughttrend'] = $row4['pendingDroughttrend'];
+                $statearray[$i]['recDrought'] = $row4['recDrought'];
+                $statearray[$i]['recDroughttrend'] = $row4['recDroughttrend'];
+                $statearray[$i]['stateCivilUnrest'] = $row4['stateCivilUnrest'];
+                $statearray[$i]['pendingCivilUnrest'] = $row4['pendingCivilUnrest'];
+                $statearray[$i]['pendingCivilUnresttrend'] = $row4['pendingCivilUnresttrend'];
+                $statearray[$i]['recCivilUnrest'] = $row4['recCivilUnrest'];
+                $statearray[$i]['recCivilUnresttrend'] = $row4['recCivilUnresttrend'];
+                $statearray[$i]['stateBust'] = $row4['stateBust'];
+                $statearray[$i]['pendingBust'] = $row4['pendingBust'];
+                $statearray[$i]['pendingBusttrend'] = $row4['pendingBusttrend'];
+                $statearray[$i]['recBust'] = $row4['recBust'];
+                $statearray[$i]['recBusttrend'] = $row4['recBusttrend'];
+                $statearray[$i]['stateBlight'] = $row4['stateBlight'];
+                $statearray[$i]['pendingBlight'] = $row4['pendingBlight'];
+                $statearray[$i]['pendingBlighttrend'] = $row4['pendingBlighttrend'];
+                $statearray[$i]['recBlight'] = $row4['recBlight'];
+                $statearray[$i]['recBlighttrend'] = $row4['recBlighttrend'];
+                $statearray[$i]['stateTradeWar'] = $row4['stateTradeWar'];
+                $statearray[$i]['pendingTradeWar'] = $row4['pendingTradeWar'];
+                $statearray[$i]['pendingTradeWartrend'] = $row4['pendingTradeWartrend'];
+                $statearray[$i]['recTradeWar'] = $row4['recTradeWar'];
+                $statearray[$i]['recTradeWartrend'] = $row4['recTradeWartrend'];
+                $statearray[$i]['stateColdWar'] = $row4['stateColdWar'];
+                $statearray[$i]['pendingColdWar'] = $row4['pendingColdWar'];
+                $statearray[$i]['pendingColdWartrend'] = $row4['pendingColdWartrend'];
+                $statearray[$i]['recColdWar'] = $row4['recColdWar'];
+                $statearray[$i]['recColdWartrend'] = $row4['recColdWartrend'];
+                $i++;
+              }
+            }
+          }
+        }
+
+        if ($statedatainactivesnapshot || $statedatainsnapshots) {
+          foreach ($statearray as &$state) {
+            $stateid = $state['stateid'];
+            $statetimestamp = $state['statetimestamp'];
+            $stateName = $state['stateName'];
+            $statefactionsystem = $state['statefactionsystem'];
+            $statefactionaddress = $state['statefactionaddress'];
+            $stateGovernment = $state['stateGovernment'];
+            $stateInfluence = $state['stateInfluence'];
+            $stateAllegiance = $state['stateAllegiance'];
+            $stateHappiness = $state['stateHappiness'];
+            $uptodate = $systemuptodate;
+            $addstatetoreport = false;
+            $statetype;
+            $statestatus;
+            $statetrend;
+
+            if ($state['stateTerroristAttack'] == 1 || $state['pendingTerroristAttack'] == 1 || $state['recTerroristAttack'] == 1) {
+              $statetype = 'Terrorist Attack';
+              $addstatetoreport = true;
+              if ($state['recTerroristAttack'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recTerroristAttacktrend'];
+              } else if ($state['pendingTerroristAttack'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingTerroristAttacktrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['statePirateAttack'] == 1 || $state['pendingPirateAttack'] == 1 || $state['recPirateAttack'] == 1) {
+              $statetype = 'Pirate Attack';
+              $addstatetoreport = true;
+              if ($state['recPirateAttack'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recPirateAttacktrend'];
+              } else if ($state['pendingPirateAttack'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingPirateAttacktrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateRetreat'] == 1 || $state['pendingRetreat'] == 1 || $state['recRetreat'] == 1) {
+              $statetype = 'Retreat';
+              $addstatetoreport = true;
+              if ($state['recRetreat'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recRetreattrend'];
+              } else if ($state['pendingRetreat'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingRetreattrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateLockdown'] == 1 || $state['pendingLockdown'] == 1 || $state['recLockdown'] == 1) {
+              $statetype = 'Lockdown';
+              $addstatetoreport = true;
+              if ($state['recLockdown'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recLockdowntrend'];
+              } else if ($state['pendingLockdown'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingLockdowntrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateFamine'] == 1 || $state['pendingFamine'] == 1 || $state['recFamine'] == 1) {
+              $statetype = 'Famine';
+              $addstatetoreport = true;
+              if ($state['recFamine'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recFaminetrend'];
+              } else if ($state['pendingFamine'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingFaminetrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($statedatainactivesnapshot) {
+              if ($state['stateExpansion'] == 1 || $state['pendingExpansion'] == 1 || $state['recExpansion'] == 1) {
+                $addstatetoreport = false;
+                if ($state['recExpansion'] == 1) {
+                  $expansionrecovering = true;
+                  $expansionrecoveringtrend = $state['recExpansiontrend'];
+                } else if ($state['pendingExpansion'] == 1) {
+                  $expansionpending = true;
+                  $expansionpendingtrend = $state['pendingExpansiontrend'];
+                } else {
+                  $expansionactive = true;
+                }
+              }
+            }
+            if ($state['stateDrought'] == 1 || $state['pendingDrought'] == 1 || $state['recDrought'] == 1) {
+              $statetype = 'Drought';
+              $addstatetoreport = true;
+              if ($state['recDrought'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recDroughttrend'];
+              } else if ($state['pendingDrought'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingDroughttrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateCivilUnrest'] == 1 || $state['pendingCivilUnrest'] == 1 || $state['recCivilUnrest'] == 1) {
+              $statetype = 'Civil Unrest';
+              $addstatetoreport = true;
+              if ($state['recCivilUnrest'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recCivilUnresttrend'];
+              } else if ($state['pendingCivilUnrest'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingCivilUnresttrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateBust'] == 1 || $state['pendingBust'] == 1 || $state['recBust'] == 1) {
+              $statetype = 'Bust';
+              $addstatetoreport = true;
+              if ($state['recBust'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recBusttrend'];
+              } else if ($state['pendingBust'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingBusttrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateBlight'] == 1 || $state['pendingBlight'] == 1 || $state['recBlight'] == 1) {
+              $statetype = 'Blight';
+              $addstatetoreport = true;
+              if ($state['recBlight'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recBlighttrend'];
+              } else if ($state['pendingBlight'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingBlighttrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateTradeWar'] == 1 || $state['pendingTradeWar'] == 1 || $state['recTradeWar'] == 1) {
+              $statetype = 'Trade War';
+              echo $statetype;
+              $addstatetoreport = true;
+              if ($state['recTradeWar'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recTradeWartrend'];
+              } else if ($state['pendingTradeWar'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingTradeWartrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+            if ($state['stateColdWar'] == 1 || $state['pendingColdWar'] == 1 || $state['recColdWar'] == 1) {
+              $statetype = 'Cold War';;
+              $addstatetoreport = true;
+              if ($state['recColdWar'] == 1) {
+                $statestatus = 'Recovering';
+                $statetrend = $state['recColdWartrend'];
+              } else if ($state['pendingColdWar'] == 1) {
+                $statestatus = 'Pending';
+                $statetrend = $state['pendingColdWartrend'];
+              } else {
+                $statestatus = 'Active';
+                $statetrend = false;
+              }
+            }
+
+            if ($addstatetoreport == true) {
+              $reportdata[] = array(
+                "systemname" => $systemname, 
+                "systemaddress" => $systemaddress, 
+                "reporttype" => 'state',
+                "type" => $statetype, 
+                "status" => $statestatus,
+                "direction" => $statetrend,
+                "updatetime" => $systemupdatetime, 
+                "uptodate" => $systemuptodate
+              );
+            }
+          }
+        }
+        // STATE WARNING SYSTEM
+
+        $systemcounter++;
       }
-      if ($reportdata) {
-        echo json_encode($reportdata);
+
+
+
+
+      $overviewdata[] = array(
+        "systemcount" => $systemcounter, 
+        "systemuptodatecount" => $systemuptodatecount, 
+        "reporttype" => 'overview'
+      );
+
+      $expansiondata = array();
+      if ($expansionrecovering || $expansionpending || $expansionactive) {
+        $statetype = 'Expansion';
+        if ($expansionrecovering) {
+          $statestatus = 'Recovering';
+          $statetrend = $expansionrecoveringtrend;
+          $expansiondata[] = array(
+            "systemname" => 'All systems', 
+            "systemaddress" => 0, 
+            "reporttype" => 'expansion',
+            "type" => $statetype, 
+            "status" => $statestatus,
+            "direction" => $statetrend
+          );
+        }
+        if ($expansionpending) {
+          $statestatus = 'Pending';
+          $statetrend = $expansionpendingtrend;
+          $expansiondata[] = array(
+            "systemname" => 'All systems', 
+            "systemaddress" => 0, 
+            "reporttype" => 'expansion',
+            "type" => $statetype, 
+            "status" => $statestatus,
+            "direction" => $statetrend
+          );
+        }
+        if ($expansionactive) {
+          $statestatus = 'Active';
+          $statetrend = false;
+          $expansiondata[] = array(
+            "systemname" => 'All systems', 
+            "systemaddress" => 0, 
+            "reporttype" => 'expansion',
+            "type" => $statetype, 
+            "status" => $statestatus,
+            "direction" => $statetrend
+          );              
+        }
+      }
+
+
+      $res = array_merge($overviewdata, $expansiondata);
+      $finalres = array_merge($res, $reportdata);
+
+      if ($finalres) {
+        echo json_encode($res);
         $log = file_get_contents($logfile);
         $log .= "Success, all done\n";
         file_put_contents($logfile, $log);
@@ -524,6 +967,56 @@ if ($requesttype == 'apikey') {
     }
   }
 }
+
+
+
+
+
+if ($requesttype == 'uptodate') {
+  $uptodate = true;
+  $systemquery = "SELECT systemaddress FROM systemlist ORDER BY systemname ASC";
+  if ($systemresult = mysqli_query($con, $systemquery)){
+    if (mysqli_num_rows($systemresult) > 0) {
+      $systemcounter = 0;
+      while($row = mysqli_fetch_array($systemresult, MYSQLI_ASSOC)) {
+        $systemaddress = $row['systemaddress'];
+
+        $systemuptodate = false;
+        $systemupdatetime = 0;
+        $tickid;
+
+        $systemcheckactivesnapshotquery = "SELECT tickid, timestamp FROM activesnapshot WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress'";
+        if ($systemcheckactivesnapshotresult = mysqli_query($con, $systemcheckactivesnapshotquery)){
+          if (mysqli_num_rows($systemcheckactivesnapshotresult) === 0) {
+            $uptodate = false;
+          }
+        }
+      }
+      $uptodatedata = array("uptodate" => $uptodate);
+      echo json_encode($uptodatedata);
+      $log = file_get_contents($logfile);
+      $log .= "Success, all done\n";
+      file_put_contents($logfile, $log);
+      exit();
+    } else {
+      $log = file_get_contents($logfile);
+      $log .= "414: No data: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+      json_response(414, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    $log = file_get_contents($logfile);
+    $log .= "413: SQL query error: ".mysqli_error($con)."\n";
+    file_put_contents($logfile, $log);
+    json_response(413, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+
+
 
 
 
