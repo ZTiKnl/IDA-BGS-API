@@ -73,49 +73,26 @@ if (!$tickprocessedyet) {
   // REMOVE OLD DATA FROM ACTIVESNAPSHOT
   $deleteactivesnapshotsquery = "DELETE FROM activesnapshot WHERE timestamp < '$newtick'";
   if ($deleteactivesnapshotsresult = mysqli_query($con, $deleteactivesnapshotsquery)){
-    $log .= "Deleted all records in activesnapshot where tickid < ".$newtickid."\n";  
+    $log .= "Deleted all records in activesnapshot where timestamp < ".$newtick."\n";  
 
-    $resyncactivesnapshotquery = "UPDATE activesnapshot SET tickid = '$newtickid' WHERE timestamp => '$newtick' AND tickid = '$oldtickid'";
+    $resyncactivesnapshotquery = "UPDATE activesnapshot SET tickid = '$newtickid' WHERE timestamp >= '$newtick' AND tickid = '$oldtickid'";
     if ($resyncactivesnapshotresult = mysqli_query($con, $resyncactivesnapshotquery)){
       $log .= mysqli_affected_rows($con)." activesnapshot records updated to match new tickid\n";
     }
   }
 
-// update
   $deletefactiondataquery = "DELETE FROM factiondata WHERE timestamp < '$oldtick'";
   if ($deletefactiondataresult = mysqli_query($con, $deletefactiondataquery)){
     $log .= "Deleted all records in factiondata where timestamp < ".$oldtick."\n";
-
-    $resyncfactiondataquery = "UPDATE factiondata SET tickid = '$newtickid' WHERE timestamp => '$newtick' AND tickid = '$oldtickid'";
-    if ($resyncfactiondataresult = mysqli_query($con, $resyncfactiondataquery)){
-      $log .= mysqli_affected_rows($con)." factiondata records updated to match new tickid\n";
-    }
   }
-// update
-
-// update
   $deletesystemdataquery = "DELETE FROM systemdata WHERE timestamp < '$oldtick'";
   if ($deletesystemdataresult = mysqli_query($con, $deletesystemdataquery)){
     $log .= "Deleted all records in systemdata where timestamp < ".$oldtick."\n";
-
-    $resyncsystemdataquery = "UPDATE systemdata SET tickid = '$newtickid' WHERE timestamp => '$newtick' AND tickid = '$oldtickid'";
-    if ($resyncsystemdataresult = mysqli_query($con, $resyncsystemdataquery)){
-      $log .= mysqli_affected_rows($con)." systemdata records updated to match new tickid\n";
-    }
   }
-// update
-
-// update
   $deleteconflictdataquery = "DELETE FROM conflictdata WHERE timestamp < '$oldtick'";
   if ($deleteconflictdataresult = mysqli_query($con, $deleteconflictdataquery)){
     $log .= "Deleted all records in conflictdata where timestamp < ".$oldtick."\n";
-
-    $resyncconflictdataquery = "UPDATE conflictdata SET tickid = '$newtickid' WHERE timestamp => '$newtick' AND tickid = '$oldtickid'";
-    if ($resyncconflictdataresult = mysqli_query($con, $resyncconflictdataquery)){
-      $log .= mysqli_affected_rows($con)." conflictdata records updated to match new tickid\n";
-    }
   }
-// update
 
 
   // START SYSTEM DATA GATHERING, final results are stored in array: $tempsystemslist
