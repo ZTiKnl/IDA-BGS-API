@@ -832,10 +832,6 @@ if($apiresult = mysqli_query($con, $apiquery)){
                 file_put_contents($logfile, $log);
               }
             }
-          } else {
-            $log = file_get_contents($logfile);
-            $log .= "System (".$StarSystem." / ".$SystemAddress.") already in systemlist\n";
-            file_put_contents($logfile, $log);
           }
         }
 
