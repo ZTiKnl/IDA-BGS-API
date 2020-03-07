@@ -755,11 +755,11 @@ if($apiresult = mysqli_query($con, $apiquery)){
                     $conflictsnapshotdeletequery = "DELETE FROM activesnapshot WHERE id = '$rownumber' AND tickid = '$newtickid' AND isconflict = '1'";
                     if (mysqli_query($con, $conflictsnapshotdeletequery)) {
                       $log = file_get_contents($logfile);
-                      $log .= "Removed conflict ".conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from activesnapshots\n";
+                      $log .= "Removed conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from activesnapshots\n";
                       file_put_contents($logfile, $log);
                     } else {
                       $log = file_get_contents($logfile);
-                      $log .= "Couldn't remove conflict ".conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from activesnapshots: ".mysqli_error($con)."\n";
+                      $log .= "Couldn't remove conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from activesnapshots: ".mysqli_error($con)."\n";
                       file_put_contents($logfile, $log);
                     }
                   }
@@ -774,7 +774,7 @@ if($apiresult = mysqli_query($con, $apiquery)){
                 file_put_contents($logfile, $log);
               } else {
                 $log = file_get_contents($logfile);
-                $log .= "Couldn't add conflict ".conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots: ".mysqli_error($con)."\n";
+                $log .= "Couldn't add conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots: ".mysqli_error($con)."\n";
                 $log .= $snapshotconflictdata."\n";
                 file_put_contents($logfile, $log);
               }
@@ -789,9 +789,9 @@ if($apiresult = mysqli_query($con, $apiquery)){
               exit();
             } else {
               $log = file_get_contents($logfile);
-              $log .= "Couldn't add conflict ".conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots: ".mysqli_error($con)."\n";
+              $log .= "Couldn't add conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots: ".mysqli_error($con)."\n";
               file_put_contents($logfile, $log);
-              json_response(405, 'sql query error', $sqlerrormessage);
+              json_response(406, 'sql query error', $sqlerrormessage);
               exit();
             }
           } else {
@@ -846,12 +846,258 @@ if($apiresult = mysqli_query($con, $apiquery)){
       $log .= "MissionCompleted event\n";
       file_put_contents($logfile, $log);
 
-      $log = file_get_contents($logfile);
-      $log .= print_r($data, TRUE)."\n\n";
-      file_put_contents($logfile, $log);
+      $idafaction = false;
+      if ($data['Faction'] == 'Independent Defence Agency' || $data['TargetFaction'] == 'Independent Defence Agency') {
+        $idafaction = true;
+      }
 
-      mysqli_close($con);
-      json_response(202, 'Success');
+      if ($idafaction) {
+        $log = file_get_contents($logfile);
+        $log .= "Data contains correct faction, proceeding\n";
+        file_put_contents($logfile, $log);
+
+        $timestamp = strtotime($data['timestamp']);
+        $datetimeobj = date_create_from_format('U', $timestamp);
+        $datetime = date_format($datetimeobj, 'Y-m-d H:i:s');
+
+        $MissionID = $data['MissionID'];
+/*
+        $Faction = $data['Faction'];
+        $TargetFaction = $data['TargetFaction'];
+        $DestinationSystem = $data['DestinationSystem'];
+*/
+        $reward = array();
+        $influence = 0;
+        $factionaddress = 0;
+        $factionname = 'Unknown';
+
+        foreach($data['FactionEffects'] as $effects) {
+          if ($effects['Faction']) {
+            $factionname = $effects['Faction'];
+          }
+          foreach($effects['Influence'] as $effect) {
+            if ($effect['SystemAddress']) {
+              $factionaddress = $effect['SystemAddress'];
+
+              $systemlistquery = "SELECT * FROM systemlist WHERE systemaddress = '$factionaddress' LIMIT 1";
+              if($systemlistresult = mysqli_query($con, $systemlistquery)){
+                if(mysqli_num_rows($systemlistresult) < 1){
+                  $factionsystem = 'Unknown';
+                } else {
+                  while($row = mysqli_fetch_array($systemlistresult, MYSQLI_ASSOC)) {
+                    $factionsystem = $row['systemname'];
+                  }
+                }
+              } else {
+                $factionsystem = 'Unknown';
+              }
+            }
+            if (!$effect['Trend']) {
+              $trend = 'Unknown';
+            } else {
+              $trend = $effect['Trend'];
+            }
+            if (!$effect['Influence']) {
+              $influence = 0;
+            } else {
+              if ($effect['Influence'] == '+++++') {
+                $influence = 5;
+              }
+              if ($effect['Influence'] == '++++') {
+                $influence = 4;
+              }
+              if ($effect['Influence'] == '+++') {
+                $influence = 3;
+              }
+              if ($effect['Influence'] == '++') {
+                $influence = 2;
+              }
+              if ($effect['Influence'] == '+') {
+                $influence = 1;
+              }
+              if ($effect['Influence'] == '-') {
+                $influence = -1;
+              }
+              if ($effect['Influence'] == '--') {
+                $influence = -2;
+              }
+              if ($effect['Influence'] == '---') {
+                $influence = -3;
+              }
+              if ($effect['Influence'] == '----') {
+                $influence = -4;
+              }
+              if ($effect['Influence'] == '-----') {
+                $influence = -5;
+              }
+            }
+
+            $reward[] = array( 
+              "factionaddress" => $factionaddress,  
+              "factionsystem" => $factionsystem,  
+              "factionname" => $factionname,  
+              "trend" => $trend,  
+              "influence" => $influence
+            );
+          }
+        }
+
+        $log = file_get_contents($logfile);
+        $log .= "count = ".count($reward)."\n";
+        file_put_contents($logfile, $log);
+
+        if (count($reward) > 1) {
+          $faction2address = $reward[1]['factionaddress'];
+          $faction2system = addslashes($reward[1]['factionsystem']);
+          $faction2name = addslashes($reward[1]['factionname']);
+          $faction2reward = $reward[1]['influence'];
+          $faction2trend = $reward[1]['trend'];
+        } else {
+          $faction2address = 0;
+          $faction2system = '';
+          $faction2name = '';
+          $faction2reward = 0;
+          $faction2trend = '';
+        }
+        if (count($reward) > 0) {
+          $faction1address = $reward[0]['factionaddress'];
+          $faction1system = addslashes($reward[0]['factionsystem']);
+          $faction1name = addslashes($reward[0]['factionname']);
+          $faction1reward = $reward[0]['influence'];
+          $faction1trend = $reward[0]['trend'];
+        }
+        if (count($reward) < 1) {
+          $log = file_get_contents($logfile);
+          $log .= "Success, no data to push\n";
+          file_put_contents($logfile, $log);
+          mysqli_close($con);
+          json_response(200, 'Success');
+          exit();
+        } else {
+          $insertrewarddata = "INSERT INTO influencerewards (
+missionid, timestamp, faction1address, faction1system, faction1name, faction1reward, faction1trend, faction2address, faction2system, faction2name, faction2reward, faction2trend )  VALUES (
+'$MissionID', '$datetime', '$faction1address', '$faction1system', '$faction1name', '$faction1reward', '$faction1trend', '$faction2address', '$faction2system', '$faction2name', '$faction2reward', '$faction2trend')";
+
+          if (mysqli_query($con, $insertrewarddata)) {
+            $log = file_get_contents($logfile);
+            if ($faction2name) {
+              $log .= "Added reward (".$faction1name." / ".$faction2name.") to influencerewards\n";
+            } else {
+              $log .= "Added reward (".$faction1name.") to influencerewards\n";
+            }
+            file_put_contents($logfile, $log);
+
+            foreach($reward as $factionreward) {
+              $factionaddress = $factionreward['factionaddress'];
+              $factionsystem = addslashes($factionreward['factionsystem']);
+              $factionname = $factionreward['factionname'];
+              $factionreward = $factionreward['influence'];
+              $factiontrend = $factionreward['trend'];
+
+              $rewardsnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND ismissionreward = '1' AND SystemAddress = '$factionaddress' AND rewardfaction = '$factionname'";
+              if($rewardsnapshotresult = mysqli_query($con, $rewardsnapshotquery)){
+                if(mysqli_num_rows($rewardsnapshotresult) > 0){
+                  while($row = mysqli_fetch_array($rewardsnapshotresult, MYSQLI_ASSOC)) {
+                    $rownumber = $row['id'];
+                    $rewardsnapshotdeletequery = "DELETE FROM activesnapshot WHERE id = '$rownumber' AND tickid = '$newtickid' AND ismissionreward = '1'";
+                    if (mysqli_query($con, $rewardsnapshotdeletequery)) {
+                      $log = file_get_contents($logfile);
+                      $log .= "Removed missionrewards for ".$factionname." (".$factionsystem.") from activesnapshots\n";
+                      file_put_contents($logfile, $log);
+                    } else {
+                      $log = file_get_contents($logfile);
+                      $log .= "Couldn't remove missionrewards for ".$factionname." (".$factionsystem.") from activesnapshots: ".mysqli_error($con)."\n";
+                      file_put_contents($logfile, $log);
+                    }
+                  }
+                } else {
+                  $log = file_get_contents($logfile);
+                  $log .= "No missionrewards to remove for ".$factionname." (".$factionsystem.") from activesnapshots\n";
+                  file_put_contents($logfile, $log);                  
+                }
+              } else {
+                $log = file_get_contents($logfile);
+                $log .= "SQL error: ".$rewardsnapshotquery."\n";
+                file_put_contents($logfile, $log);
+              }
+              
+              $rewardcountquery = "SELECT * FROM influencerewards WHERE timestamp > '$newtick' AND (faction1address = '$factionaddress' OR faction2address = '$factionaddress') AND (faction1name = '$factionname' OR faction2name = '$factionname')";
+              if($rewardcountresult = mysqli_query($con, $rewardcountquery)){
+                if(mysqli_num_rows($rewardcountresult) > 0){
+                  $amount = 0;
+                  while($row2 = mysqli_fetch_array($rewardcountresult, MYSQLI_ASSOC)) {
+                    if ($row2['faction1name'] == $factionname) {
+                      $amount = $amount + $row2['faction1reward'];
+                    } else if ($row2['faction2name'] == $factionname) {
+                      $amount = $amount + $row2['faction2reward'];
+                    }
+                  }
+                } else {
+                  $amount = $factionreward;
+                }
+
+                $insertrewarddatasnapshot = "INSERT INTO activesnapshot (ismissionreward, tickid, timestamp, StarSystem, SystemAddress, rewardfaction, rewardtotal, rewardtrend )  VALUES ('1', '$newtickid', '$datetime', '$factionsystem', '$factionaddress', '$factionname', '$amount', '$factiontrend')";
+                if (mysqli_query($con, $insertrewarddatasnapshot)) {
+                  $log = file_get_contents($logfile);
+                  $log .= "Added missionreward totals ".$amount." (".$factionname." / ".$factionsystem.") to activesnapshots\n";
+                  file_put_contents($logfile, $log);
+                } else {
+                  $log = file_get_contents($logfile);
+                  $log .= "Couldn't add missionreward totals ".$amount." (".$factionname." / ".$factionsystem.") to activesnapshots: ".mysqli_error($con)."\n";
+                  file_put_contents($logfile, $log);
+                }
+
+
+
+
+              } else {
+                $log = file_get_contents($logfile);
+                $log .= "SQL error: ".$rewardcountquery."\n";
+                file_put_contents($logfile, $log);
+              }
+            }
+            $log = file_get_contents($logfile);
+            $log .= "Success, all done\n";
+            file_put_contents($logfile, $log);
+            mysqli_close($con);
+            json_response(200, 'Success');
+            exit();
+          } else {
+            $log = file_get_contents($logfile);
+            $log .= "SQL query error: ".mysqli_error($con)."\n".$insertrewarddata."\n";
+            file_put_contents($logfile, $log);
+            json_response(407, 'sql query error', mysqli_error($con));
+            exit();
+          }
+        }
+      } else {
+        $log = file_get_contents($logfile);
+        $log .= "Data doesn't contain correct faction\n";
+        file_put_contents($logfile, $log);
+        mysqli_close($con);
+        json_response(201, 'Success');
+      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
   } else {
     $log = file_get_contents($logfile);
@@ -885,6 +1131,3 @@ function json_response($code = 200, $message = null, $error = null) {
   ));
 }
 ?>
-
-
-
