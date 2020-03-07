@@ -869,7 +869,7 @@ if ($requesttype == 'report') {
       $finalres = array_merge($res, $reportdata);
 
       if ($finalres) {
-        echo json_encode($res);
+        echo json_encode($finalres);
         $log = file_get_contents($logfile);
         $log .= "Success, all done\n";
         file_put_contents($logfile, $log);
