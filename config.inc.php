@@ -15,5 +15,6 @@ $sitetitle = 'Independent Defence Agency - BGS';
 $pmfname = 'Independent Defence Agency';
 $pmfshortname = 'IDA';
 
-$systeminfluencewarningpercentage = 4;
+$systeminfluencewarningpercentage = 7;
+$influenceproximitywarningpercentage = 4;
 ?>
