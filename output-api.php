@@ -45,15 +45,31 @@ if (!$data) {
   } else {
     $requesttype = filter_var($data['request'], FILTER_SANITIZE_SPECIAL_CHARS);
   }
+  if (isset($data['userid'])) {
+    $checkid = filter_var($data['userid'], FILTER_SANITIZE_SPECIAL_CHARS);
+  }
 }
 
-//check API key
-$apiquery = "SELECT * FROM apikeys WHERE apikey = '$apikey'";
+//check API key and get $checkid
+$apiquery = "SELECT id FROM apikeys WHERE apikey = '$apikey'";
 if($apiresult = mysqli_query($con, $apiquery)){
   if(mysqli_num_rows($apiresult) > 0){
     $log = file_get_contents($logfile);
     $log .= "APIkey matches\n";
     file_put_contents($logfile, $log);
+    
+    if(isset($checkid)) {
+      $api2query = "SELECT id FROM apikeys WHERE userid = '$checkid'";
+      if($api2result = mysqli_query($con, $api2query)){
+        while($row2 = mysqli_fetch_array($api2result, MYSQLI_ASSOC)) {
+          $checkid = $row2['id'];
+        }
+      } else {
+        $checkid = 0;
+      }
+    }
+    
+    
   } else {
     $log = file_get_contents($logfile);
     $log .= "403: Unknown APIkey\n";
@@ -233,6 +249,7 @@ report
 */
 if ($requesttype == 'report') {
   $reportdata = array();
+  $influenceproximitydata = array();
   $expansionpending = false;
   $expansionpendingtrend;
   $expansionrecovering = false;
@@ -251,7 +268,7 @@ if ($requesttype == 'report') {
         $systemupdatetime = 0;
         $tickid;
 
-        $systemcheckactivesnapshotquery = "SELECT tickid, timestamp FROM activesnapshot WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress'";
+        $systemcheckactivesnapshotquery = "SELECT tickid, timestamp FROM act_snapshot_systems WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress'";
         if ($systemcheckactivesnapshotresult = mysqli_query($con, $systemcheckactivesnapshotquery)){
           if (mysqli_num_rows($systemcheckactivesnapshotresult) > 0) {
             $systemuptodate = true;
@@ -262,7 +279,7 @@ if ($requesttype == 'report') {
             }
           } else {
 
-            $systemchecksnapshotsquery = "SELECT tickid, timestamp FROM snapshots WHERE tickid = '$oldtickid' AND SystemAddress = '$systemaddress' ORDER BY timestamp DESC LIMIT 1";
+            $systemchecksnapshotsquery = "SELECT tickid, timestamp FROM snapshot_systems WHERE tickid = '$oldtickid' AND SystemAddress = '$systemaddress' ORDER BY timestamp DESC LIMIT 1";
             if ($systemchecksnapshotsresult = mysqli_query($con, $systemchecksnapshotsquery)){
               if (mysqli_num_rows($systemchecksnapshotsresult) > 0) {
                 while($row3 = mysqli_fetch_array($systemchecksnapshotsresult, MYSQLI_ASSOC)) {
@@ -282,12 +299,12 @@ if ($requesttype == 'report') {
 
 
 
-        // INFLUENCE WARNING SYSTEM
+        // INFLUENCE RISE/DROP WARNING SYSTEM
         $influencedatainactivesnapshot = false;
         $influencedatainsnapshots = false;
         $factioninfluencearray = array();
 
-        $influenceactivesnapshotquery = "SELECT Influence FROM activesnapshot WHERE tickid = '$newtickid' AND isfaction = '1' AND factionaddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
+        $influenceactivesnapshotquery = "SELECT Influence FROM act_snapshot_factions WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
         if ($influenceactivesnapshotresult = mysqli_query($con, $influenceactivesnapshotquery)){
           if (mysqli_num_rows($influenceactivesnapshotresult) > 0) {
             $influencedatainactivesnapshot = true;
@@ -302,7 +319,7 @@ if ($requesttype == 'report') {
         } else {
           $limiter = 2;
         }
-        $influencesnapshotquery = "SELECT Influence FROM snapshots WHERE isfaction = '1' AND factionaddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT ".$limiter; 
+        $influencesnapshotquery = "SELECT Influence FROM snapshot_factions WHERE SystemAddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT ".$limiter; 
         if ($influencesnapshotresult = mysqli_query($con, $influencesnapshotquery)){
           if (mysqli_num_rows($influencesnapshotresult) > 0) {
             // use data from activesnapshot
@@ -342,7 +359,89 @@ if ($requesttype == 'report') {
             "uptodate" => $uptodate
           );
         }
-        // INFLUENCE WARNING SYSTEM
+        // INFLUENCE RISE/DROP WARNING SYSTEM
+
+
+
+
+
+        // INFLUENCE PROXIMITY WARNING SYSTEM
+        $influencedatainactivesnapshot = false;
+        $influencedatainsnapshots = false;
+
+        $influenceactivesnapshotquery = "SELECT timestamp, Name, StarSystem, SystemAddress, Influence FROM act_snapshot_factions WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress' ORDER BY Name ASC";
+        if ($influenceactivesnapshotresult = mysqli_query($con, $influenceactivesnapshotquery)){
+          if (mysqli_num_rows($influenceactivesnapshotresult) > 0) {
+            $influencedatainactivesnapshot = true;
+            $tempinfluenceproximityarray = array();
+            while($row2 = mysqli_fetch_array($influenceactivesnapshotresult, MYSQLI_ASSOC)) {
+              $updatetime = $row2['timestamp'];
+              $factionname = $row2['Name'];
+              $factioninfluence = round(($row2['Influence'] * 100), 2);
+
+              if ($factionname != 'Pilots\' Federation Local Branch') {
+                $tempinfluenceproximityarray[] = array(
+                  "timestamp" => $updatetime,
+                  "factionname" => $factionname,
+                  "factionsystem" => $systemname,  
+                  "factionaddress" => $systemaddress,
+                  "factioninfluence" => $factioninfluence
+                );
+              }
+            }
+
+            $tempinfluenceproximitycount = count($tempinfluenceproximityarray);
+            $tempinfluenceproximitycounter = 0;
+            while($tempinfluenceproximitycounter < $tempinfluenceproximitycount) {
+              if ($tempinfluenceproximityarray[$tempinfluenceproximitycounter]['factionname'] == $pmfname) {
+                $factiontimestamp = $tempinfluenceproximityarray[$tempinfluenceproximitycounter]['timestamp'];
+                $factionname = $tempinfluenceproximityarray[$tempinfluenceproximitycounter]['factionname'];
+                $factionsystem = $systemname;
+                $factionaddress = $systemaddress;
+                $factioninfluence = $tempinfluenceproximityarray[$tempinfluenceproximitycounter]['factioninfluence'];
+
+                foreach ($tempinfluenceproximityarray as $faction) {
+                  if ($faction['factionname'] != $pmfname) {
+                    $testinfluence = $faction['factioninfluence'];
+                    $difference = round(abs(($factioninfluence - $testinfluence)), 2);
+                    if ($difference < 5) {
+                      if ($factiontimestamp > $newtick) {
+                        $uptodate = true;
+                      } else {
+                        $uptodate = false;
+                      }
+                      $influenceproximitydata[] = array(
+                        "timestamp" => $factiontimestamp,
+                        "reporttype" => 'influenceproximity',
+                        "factionproximity" => $difference,
+                        "factionsystem" => $factionsystem,
+                        "factionaddress" => $factionaddress,
+                        "factionname" => $factionname,
+                        "factioninfluence" => $factioninfluence,
+                        "faction2name" => $faction['factionname'],
+                        "faction2influence" => $testinfluence,
+                        "uptodate" => $uptodate
+                      );
+
+                    }
+                  }
+                }
+              }
+
+              $tempinfluenceproximitycounter++;
+            }
+          }
+        }
+        // INFLUENCE PROXIMITY WARNING SYSTEM
+
+/*
+            echo "<br /><br />influenceproximitydata<pre>";
+            print_r($influenceproximitydata);
+            echo "</pre><br /><br />";
+*/
+
+
+
 
 
 
@@ -352,7 +451,7 @@ if ($requesttype == 'report') {
         $conflictdatainsnapshots = false;
 
         if ($systemuptodate) {
-          $conflictactivesnapshotquery = "SELECT conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays FROM activesnapshot WHERE tickid = '$newtickid' AND isconflict = '1' AND SystemAddress = '$systemaddress' AND (conflictfaction1name = '".$pmfname."' OR conflictfaction2name = '".$pmfname."') ORDER BY tickid DESC";
+          $conflictactivesnapshotquery = "SELECT conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays FROM act_snapshot_conflicts WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress' AND (conflictfaction1name = '".$pmfname."' OR conflictfaction2name = '".$pmfname."') ORDER BY tickid DESC";
           if ($conflictactivesnapshotresult = mysqli_query($con, $conflictactivesnapshotquery)){
             if (mysqli_num_rows($conflictactivesnapshotresult) > 0) {
               $conflictdatainactivesnapshot = true;
@@ -371,7 +470,7 @@ if ($requesttype == 'report') {
             }
           }
         } else {
-          $conflictsnapshotquery = "SELECT conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays FROM snapshots WHERE tickid = '$oldtickid' AND isconflict = '1' AND SystemAddress = '$systemaddress' AND (conflictfaction1name = '".$pmfname."' OR conflictfaction2name = '".$pmfname."') ORDER BY tickid DESC";
+          $conflictsnapshotquery = "SELECT conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays FROM snapshot_conflicts WHERE tickid = '$oldtickid' AND SystemAddress = '$systemaddress' AND (conflictfaction1name = '".$pmfname."' OR conflictfaction2name = '".$pmfname."') ORDER BY tickid DESC";
           if ($conflictsnapshotresult = mysqli_query($con, $conflictsnapshotquery)){
             if (mysqli_num_rows($conflictsnapshotresult) > 0) {
               $conflictdatainsnapshots = true;
@@ -447,7 +546,7 @@ if ($requesttype == 'report') {
         $statedatainsnapshots = false;
 
         if ($systemuptodate) {
-          $stateactivesnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND isfaction = '1' AND factionaddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
+          $stateactivesnapshotquery = "SELECT * FROM act_snapshot_factions WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
           if ($stateactivesnapshotresult = mysqli_query($con, $stateactivesnapshotquery)){
             if (mysqli_num_rows($stateactivesnapshotresult) > 0) {
               $statedatainactivesnapshot = true;
@@ -456,8 +555,8 @@ if ($requesttype == 'report') {
                 $statearray[$i]['stateid'] = $row3['id'];
                 $statearray[$i]['statetimestamp'] = $row3['timestamp'];
                 $statearray[$i]['stateName'] = addslashes($row3['Name']);
-                $statearray[$i]['statefactionsystem'] = $row3['factionaddress'];
-                $statearray[$i]['statefactionaddress'] = addslashes($row3['factionsystem']);
+                $statearray[$i]['statefactionsystem'] = $row3['SystemAddress'];
+                $statearray[$i]['statefactionaddress'] = addslashes($row3['StarSystem']);
                 $statearray[$i]['stateGovernment'] = $row3['Government'];
                 $statearray[$i]['stateInfluence'] = $row3['Influence'];
                 $statearray[$i]['stateAllegiance'] = $row3['Allegiance'];
@@ -527,7 +626,7 @@ if ($requesttype == 'report') {
             }
           }
         } else {
-          $statesnapshotquery = "SELECT * FROM snapshots WHERE tickid = '$oldtickid' AND isfaction = '1' AND factionaddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
+          $statesnapshotquery = "SELECT * FROM snapshot_factions WHERE tickid = '$oldtickid' AND SystemAddress = '$systemaddress' AND Name = '".$pmfname."' ORDER BY tickid DESC LIMIT 1";
           if ($statesnapshotresult = mysqli_query($con, $statesnapshotquery)){
             if (mysqli_num_rows($statesnapshotresult) > 0) {
               $statedatainsnapshots = true;
@@ -536,8 +635,8 @@ if ($requesttype == 'report') {
                 $statearray[$i]['stateid'] = $row4['id'];
                 $statearray[$i]['statetimestamp'] = $row4['timestamp'];
                 $statearray[$i]['stateName'] = addslashes($row4['Name']);
-                $statearray[$i]['statefactionsystem'] = $row4['factionaddress'];
-                $statearray[$i]['statefactionaddress'] = addslashes($row4['factionsystem']);
+                $statearray[$i]['statefactionsystem'] = $row4['SystemAddress'];
+                $statearray[$i]['statefactionaddress'] = addslashes($row4['StarSystem']);
                 $statearray[$i]['stateGovernment'] = $row4['Government'];
                 $statearray[$i]['stateInfluence'] = $row4['Influence'];
                 $statearray[$i]['stateAllegiance'] = $row4['Allegiance'];
@@ -866,7 +965,8 @@ if ($requesttype == 'report') {
 
 
       $res = array_merge($overviewdata, $expansiondata);
-      $finalres = array_merge($res, $reportdata);
+      $res2 = array_merge($res, $influenceproximitydata);
+      $finalres = array_merge($res2, $reportdata);
 
       if ($finalres) {
         echo json_encode($finalres);
@@ -985,7 +1085,7 @@ if ($requesttype == 'uptodate') {
         $systemupdatetime = 0;
         $tickid;
 
-        $systemcheckactivesnapshotquery = "SELECT tickid, timestamp FROM activesnapshot WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress'";
+        $systemcheckactivesnapshotquery = "SELECT tickid, timestamp FROM act_snapshot_systems WHERE tickid = '$newtickid' AND SystemAddress = '$systemaddress'";
         if ($systemcheckactivesnapshotresult = mysqli_query($con, $systemcheckactivesnapshotquery)){
           if (mysqli_num_rows($systemcheckactivesnapshotresult) === 0) {
             $uptodate = false;
@@ -1027,6 +1127,186 @@ if ($requesttype == 'uptodate') {
 
 
 
+
+
+
+
+
+
+
+
+
+
+/*
+influence
+{
+  {
+    "timestamp":"000",
+    "systemaddres":"asdasd",
+    "systemname":"asdasd",
+    "factionname"="dsadsa",
+    "influence"="conflict",
+    "direction"=0,
+  }
+}
+*/
+if ($requesttype == 'influence') {
+  $reportdata = array();
+  $influencequery = "SELECT timestamp, StarSystem, SystemAddress, rewardfaction, rewardtotal, rewardtrend FROM act_snapshot_missionrewards WHERE tickid = '$newtickid'";
+
+  if ($influenceresult = mysqli_query($con, $influencequery)){
+    if (mysqli_num_rows($influenceresult) > 0) {
+      while($row = mysqli_fetch_array($influenceresult, MYSQLI_ASSOC)) {
+        $infrewardtimestamp = $row['timestamp'];
+        $infrewardsystem = $row['StarSystem'];
+        $infrewardaddress = $row['SystemAddress'];
+        $infrewardfaction = $row['rewardfaction'];
+        $infrewardtotal = $row['rewardtotal'];
+        $infrewardtrend = $row['rewardtrend'];
+
+        if ($infrewardsystem == '' || $infrewardsystem == 'Unknown') {
+          $infrewardsystem = 'Unknown: address '.$infrewardaddress;
+        }
+        $reportdata[] = array(
+          "timestamp" => $infrewardtimestamp, 
+          "systemname" => $infrewardsystem, 
+          "factionname" => $infrewardfaction, 
+          "influence" => $infrewardtotal, 
+          "direction" => $infrewardtrend
+        );
+      }
+
+
+
+      echo json_encode($reportdata);
+      $log = file_get_contents($logfile);
+      $log .= "Success, all done\n";
+      file_put_contents($logfile, $log);
+      exit();
+
+    } else {
+      $log = file_get_contents($logfile);
+      $log .= "416: No data: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+      json_response(416, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    $log = file_get_contents($logfile);
+    $log .= "415: SQL query error: ".mysqli_error($con)."\n";
+    file_put_contents($logfile, $log);
+    json_response(415, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+/*
+myinfluence
+{
+  {
+    "timestamp":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "factionname"="dsadsa",
+    "influence"=15
+  }
+}
+*/
+if ($requesttype == 'myinfluence') {
+  $reportdata = array();
+  $influencesystemsquery = "SELECT faction1address, faction2address FROM data_missionrewards WHERE timestamp > '$newtick' AND userid = '$checkid'";
+  if ($influencesystemsresult = mysqli_query($con, $influencesystemsquery)){
+    if (mysqli_num_rows($influencesystemsresult) > 0) {
+      $systemsarray = array();
+      while($row = mysqli_fetch_array($influencesystemsresult, MYSQLI_ASSOC)) {
+        if ($row['faction1address'] != NULL && $row['faction1address'] != '' && $row['faction1address'] != 0) {
+          $systemsarray[] = $row['faction1address'];
+        }
+        if ($row['faction2address'] != NULL && $row['faction2address'] != '' && $row['faction2address'] != 0) {
+          $systemsarray[] = $row['faction2address'];
+        }
+      }
+      $systemsarray = array_unique($systemsarray);
+      $factionsarray = array();
+      foreach ($systemsarray as $infsystemaddress) {
+        $influencesystemfactionsquery = "SELECT faction1address, faction1name, faction2address, faction2name FROM data_missionrewards WHERE timestamp > '$newtick' AND userid = '$checkid' AND (faction1address = '$infsystemaddress' || faction2address = '$infsystemaddress')";
+        if ($influencesystemfactionsresult = mysqli_query($con, $influencesystemfactionsquery)){
+          if (mysqli_num_rows($influencesystemfactionsresult) > 0) {
+            while($row2 = mysqli_fetch_array($influencesystemfactionsresult, MYSQLI_ASSOC)) {
+              $factionsarray[] = $row2['faction1name'];
+              if ($row2['faction2name'] != NULL && $row2['faction2address'] != '') {
+                $factionsarray[] = $row2['faction1name'];
+              }
+            }
+            $factionsarray = array_unique($factionsarray);
+            
+            foreach ($factionsarray as $inffactionname) {
+              $total = 0;
+              $inftimestamp = 0;
+              $infsystemname = '';
+              $influencetotalquery = "SELECT timestamp, faction1address, faction1system, faction1name, faction1reward, faction2address, faction2system, faction2name, faction2reward FROM data_missionrewards WHERE timestamp > '$newtick' AND userid = '$checkid' AND (faction1address = '$infsystemaddress' || faction2address = '$infsystemaddress') AND (faction1name = '$inffactionname' || faction2name = '$inffactionname') ORDER BY timestamp ASC";
+              if ($influencetotalresult = mysqli_query($con, $influencetotalquery)){
+                if (mysqli_num_rows($influencetotalresult) > 0) {
+                  while($row3 = mysqli_fetch_array($influencetotalresult, MYSQLI_ASSOC)) {
+                    if ($row3['faction1name'] == $inffactionname && $row3['faction1address'] == $infsystemaddress) {
+                      $inftimestamp = $row3['timestamp'];
+                      $infsystemname = $row3['faction1system'];
+                      $reward = $row3['faction1reward'];
+                      $total = $total + $reward;
+                    }
+                    if ($row3['faction2name'] == $inffactionname && $row3['faction2address'] == $infsystemaddress) {
+                      $inftimestamp = $row3['timestamp'];
+                      $infsystemname = $row3['faction2system'];
+                      $reward = $row3['faction2reward'];
+                      $total = $total + $reward;
+                    }
+                  }
+                  
+                }
+              }
+              $reportdata[] = array(
+                "lastupdate" => $inftimestamp, 
+                "systemaddress" => $infsystemaddress, 
+                "systemname" => $infsystemname, 
+                "factionname" => $inffactionname, 
+                "influence" => $total
+              );
+            }
+          }
+        }
+      }
+
+      echo json_encode($reportdata);
+      $log = file_get_contents($logfile);
+      $log .= "Success, all done\n";
+      file_put_contents($logfile, $log);
+      exit();
+
+    } else {
+      $log = file_get_contents($logfile);
+      $log .= "418: No data: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+      json_response(418, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    $log = file_get_contents($logfile);
+    $log .= "417: SQL query error: ".mysqli_error($con)."\n";
+    file_put_contents($logfile, $log);
+    json_response(417, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+
+
+
+
+
+
+
 function json_response($code = 444, $message = 'undefined error') {
   // clear the old headers
   header_remove();
@@ -1046,14 +1326,14 @@ function json_response($code = 444, $message = 'undefined error') {
 
 function getpmfinfluence($systemaddress, $con, $pmfname) {
   $pmfinfluence;
-  $pmfinfluenceactivesnapshotquery = "SELECT Influence FROM activesnapshot WHERE isfaction = 1 AND factionaddress = '".$systemaddress."' AND Name = '".$pmfname."' ORDER BY timestamp DESC LIMIT 1";
+  $pmfinfluenceactivesnapshotquery = "SELECT Influence FROM act_snapshot_factions WHERE SystemAddress = '".$systemaddress."' AND Name = '".$pmfname."' ORDER BY timestamp DESC LIMIT 1";
   if ($pmfinfluenceactivesnapshotresult = mysqli_query($con, $pmfinfluenceactivesnapshotquery)){
     if (mysqli_num_rows($pmfinfluenceactivesnapshotresult) > 0) {
       while($row = mysqli_fetch_array($pmfinfluenceactivesnapshotresult, MYSQLI_ASSOC)) {
         $pmfinfluence = round(($row['Influence'] * 100), 2);
       }
     } else {
-      $pmfinfluencesnapshotsquery = "SELECT Influence FROM snapshots WHERE isfaction = 1 AND factionaddress = '".$systemaddress."' AND Name = '".$pmfname."' ORDER BY timestamp DESC LIMIT 1";
+      $pmfinfluencesnapshotsquery = "SELECT Influence FROM snapshot_factions WHERE SystemAddress = '".$systemaddress."' AND Name = '".$pmfname."' ORDER BY timestamp DESC LIMIT 1";
       if ($pmfinfluencesnapshotsresult = mysqli_query($con, $pmfinfluencesnapshotsquery)){
         if (mysqli_num_rows($pmfinfluencesnapshotsresult) > 0) {
           while($row2 = mysqli_fetch_array($pmfinfluencesnapshotsresult, MYSQLI_ASSOC)) {
@@ -1072,14 +1352,14 @@ function getpmfinfluence($systemaddress, $con, $pmfname) {
 
 function getlastupdatetime($systemaddress, $con) {
   $lastupdatetime;
-  $lastupdatequery = "SELECT timestamp FROM activesnapshot WHERE issystem = 1 AND SystemAddress = '".$systemaddress."' ORDER BY timestamp DESC LIMIT 1";
+  $lastupdatequery = "SELECT timestamp FROM act_snapshot_systems WHERE SystemAddress = '".$systemaddress."' ORDER BY timestamp DESC LIMIT 1";
   if ($lastupdateresult = mysqli_query($con, $lastupdatequery)){
     if (mysqli_num_rows($lastupdateresult) > 0) {
       while($row = mysqli_fetch_array($lastupdateresult, MYSQLI_ASSOC)) {
         $lastupdatetime = $row['timestamp'];
       }
     } else {
-      $updatequery = "SELECT timestamp FROM snapshots WHERE issystem = 1 AND SystemAddress = '".$systemaddress."' ORDER BY timestamp DESC LIMIT 1";
+      $updatequery = "SELECT timestamp FROM snapshot_systems WHERE SystemAddress = '".$systemaddress."' ORDER BY timestamp DESC LIMIT 1";
       if ($updateresult = mysqli_query($con, $updatequery)){
         if (mysqli_num_rows($updateresult) > 0) {
           while($row2 = mysqli_fetch_array($updateresult, MYSQLI_ASSOC)) {
