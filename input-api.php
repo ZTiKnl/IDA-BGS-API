@@ -63,14 +63,20 @@ if ($tickresult = mysqli_query($con, $tickquery)){
   }
 }
 
-//check API key
+//check API key and get api id
 $apikey = $data['key'];
-$apiquery = "SELECT * FROM apikeys WHERE apikey = '$apikey'";
+$apiquery = "SELECT id FROM apikeys WHERE apikey = '$apikey'";
+$apiid = 0;
 if($apiresult = mysqli_query($con, $apiquery)){
   if(mysqli_num_rows($apiresult) > 0){
     $log = file_get_contents($logfile);
     $log .= "APIkey matches\n";
     file_put_contents($logfile, $log);
+
+    while($row = mysqli_fetch_array($apiresult, MYSQLI_ASSOC)) {
+      $apiid = $row['id'];
+    }
+
 
     if ($dataevent == 'FSDJump') {
       $log = file_get_contents($logfile);
@@ -78,9 +84,11 @@ if($apiresult = mysqli_query($con, $apiquery)){
       file_put_contents($logfile, $log);
 
       $idafaction = false;
-      foreach($data['Factions'] as $idadata) {
-        if ($idadata['Name'] == 'Independent Defence Agency') {
-          $idafaction = true;
+      if (isset($data['Factions'])) {
+        foreach($data['Factions'] as $idadata) {
+          if ($idadata['Name'] == $pmfname) {
+            $idafaction = true;
+          }
         }
       }
 
@@ -107,7 +115,11 @@ if($apiresult = mysqli_query($con, $apiquery)){
         $SystemSecondEconomy = str_replace('$economy_', "", $data['SystemSecondEconomy']);
           $SystemSecondEconomy = str_replace(';', "", $SystemSecondEconomy);
         $SystemFactionName = addslashes($data['SystemFaction']['Name']);
-        $SystemFactionState = $data['SystemFaction']['FactionState'];
+        if (isset($data['SystemFaction']['FactionState'])) {
+          $SystemFactionState = $data['SystemFaction']['FactionState'];
+        } else {
+          $SystemFactionState = '';
+        }
 
         $systemlistquery = "SELECT * FROM systemlist WHERE systemname = '$StarSystem' AND systemaddress = '$SystemAddress'";
         if($systemlistresult = mysqli_query($con, $systemlistquery)){
@@ -126,42 +138,42 @@ if($apiresult = mysqli_query($con, $apiquery)){
           }
         }
 
-        $insertsystemdata = "INSERT INTO systemdata (timestamp, StarSystem, SystemAddress, Population, SystemAllegiance, SystemGovernment, SystemSecurity, SystemEconomy, SystemSecondEconomy, ControllingFaction, FactionState)  VALUES ('$datetime', '$StarSystem', '$SystemAddress', '$Population', '$SystemAllegiance', '$SystemGovernment', '$SystemSecurity', '$SystemEconomy', '$SystemSecondEconomy', '$SystemFactionName', '$SystemFactionState')";
+        $insertsystemdata = "INSERT INTO data_systems (timestamp, StarSystem, SystemAddress, Population, SystemAllegiance, SystemGovernment, SystemSecurity, SystemEconomy, SystemSecondEconomy, ControllingFaction, FactionState)  VALUES ('$datetime', '$StarSystem', '$SystemAddress', '$Population', '$SystemAllegiance', '$SystemGovernment', '$SystemSecurity', '$SystemEconomy', '$SystemSecondEconomy', '$SystemFactionName', '$SystemFactionState')";
 
         if (mysqli_query($con, $insertsystemdata)) {
           $log = file_get_contents($logfile);
-          $log .= "Added system (".$StarSystem." / ".$SystemAddress.") to systemdata\n";
+          $log .= "Added system (".$StarSystem." / ".$SystemAddress.") to data_systems\n";
           $log .= $insertsystemdata."\n";
           file_put_contents($logfile, $log);
 
-          // check if entry already exists for same tick/starsystem/systemaddress, delete these rows
-          $systemsnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND issystem = '1' AND StarSystem = '$StarSystem' AND SystemAddress = '$SystemAddress'";
+          // check if entry already exists for same tick/systemaddress, delete these rows
+          $systemsnapshotquery = "SELECT * FROM act_snapshot_systems WHERE tickid = '$newtickid' AND SystemAddress = '$SystemAddress'";
           if($systemsnapshotresult = mysqli_query($con, $systemsnapshotquery)){
             if(mysqli_num_rows($systemsnapshotresult) > 0){
               while($row = mysqli_fetch_array($systemsnapshotresult, MYSQLI_ASSOC)) {
                 $rownumber = $row['id'];
-                $systemsnapshotdeletequery = "DELETE FROM activesnapshot WHERE id = '$rownumber' AND tickid = '$newtickid' AND issystem = '1'";
+                $systemsnapshotdeletequery = "DELETE FROM act_snapshot_systems WHERE id = '$rownumber'";
                 if (mysqli_query($con, $systemsnapshotdeletequery)) {
                   $log = file_get_contents($logfile);
-                  $log .= "Removed system (".$StarSystem." / ".$SystemAddress.") from activesnapshots\n";
+                  $log .= "Removed system (".$StarSystem." / ".$SystemAddress.") from active snapshot\n";
                   file_put_contents($logfile, $log);
                 } else {
                   $log = file_get_contents($logfile);
-                  $log .= "Couldn't remove system (".$StarSystem." / ".$SystemAddress.") from activesnapshots: ".mysqli_error($con)."\n";
+                  $log .= "Couldn't remove system (".$StarSystem." / ".$SystemAddress.") from active snapshot: ".mysqli_error($con)."\n";
                   file_put_contents($logfile, $log);
                 }
               }
             }
           }
-          $snapshotsystemdata = "INSERT INTO activesnapshot (tickid, timestamp, issystem, isfaction, isconflict, StarSystem, SystemAddress, Population, SystemAllegiance, SystemGovernment, SystemSecurity, SystemEconomy, SystemSecondEconomy, ControllingFaction, FactionState)  VALUES ('$newtickid', '$datetime', '1', '0', '0', '$StarSystem', '$SystemAddress', '$Population', '$SystemAllegiance', '$SystemGovernment', '$SystemSecurity', '$SystemEconomy', '$SystemSecondEconomy', '$SystemFactionName', '$SystemFactionState')";
+          $snapshotsystemdata = "INSERT INTO act_snapshot_systems (tickid, timestamp, StarSystem, SystemAddress, Population, SystemAllegiance, SystemGovernment, SystemSecurity, SystemEconomy, SystemSecondEconomy, ControllingFaction, FactionState)  VALUES ('$newtickid', '$datetime', '$StarSystem', '$SystemAddress', '$Population', '$SystemAllegiance', '$SystemGovernment', '$SystemSecurity', '$SystemEconomy', '$SystemSecondEconomy', '$SystemFactionName', '$SystemFactionState')";
           if (mysqli_query($con, $snapshotsystemdata)) {
             $log = file_get_contents($logfile);
-            $log .= "Added system (".$StarSystem." / ".$SystemAddress.") to activesnapshots\n";
+            $log .= "Added system (".$StarSystem." / ".$SystemAddress.") to active snapshot\n";
             $log .= $snapshotsystemdata."\n";
             file_put_contents($logfile, $log);
           } else {
             $log = file_get_contents($logfile);
-            $log .= "Couldn't add system (".$StarSystem." / ".$SystemAddress.") to activesnapshots: ".mysqli_error($con)."\n";
+            $log .= "Couldn't add system (".$StarSystem." / ".$SystemAddress.") to active snapshot: ".mysqli_error($con)."\n";
             file_put_contents($logfile, $log);
           }
 
@@ -656,7 +668,7 @@ if($apiresult = mysqli_query($con, $apiquery)){
               }
             }
 
-            $insertfactiondata = "INSERT INTO factiondata (timestamp, systemname, systemaddress, Name, Government, Influence, Allegiance, Happiness, stateBlight, stateBoom, stateBust, stateCivilLiberty, stateCivilUnrest, stateCivilWar, stateColdWar, stateColonisation, stateDamaged, stateDrought, stateElection, stateExpansion, stateFamine, stateHistoricEvent, stateInfrastructureFailure, stateInvestment, stateLockdown, stateNaturalDisaster, stateOutbreak, statePirateAttack, statePublicHoliday, stateRetreat, stateRevolution, stateTechnologicalLeap, stateTerroristAttack, stateTradeWar, stateUnderRepairs, stateWar, recBlight, recBlightTrend, recBoom, recBoomTrend, recBust, recBustTrend, recCivilLiberty, recCivilLibertyTrend, recCivilUnrest, recCivilUnrestTrend, recCivilWar, recCivilWarTrend, recColdWar, recColdWarTrend, recColonisation, recColonisationTrend, recDamaged, recDamagedTrend, recDrought, recDroughtTrend, recElection, recElectionTrend, recExpansion, recExpansionTrend, recFamine, recFamineTrend, recHistoricEvent, recHistoricEventTrend, recInfrastructureFailure, recInfrastructureFailureTrend, recInvestment, recInvestmentTrend, recLockdown, recLockdownTrend, recNaturalDisaster, recNaturalDisasterTrend, recOutbreak, recOutbreakTrend, recPirateAttack, recPirateAttackTrend, recPublicHoliday, recPublicHolidayTrend, recRetreat, recRetreatTrend, recRevolution, recRevolutionTrend, recTechnologicalLeap, recTechnologicalLeapTrend, recTerroristAttack, recTerroristAttackTrend, recTradeWar, recTradeWarTrend, recUnderRepairs, recUnderRepairsTrend, recWar, recWarTrend, pendingBlight, pendingBlightTrend, pendingBoom, pendingBoomTrend, pendingBust, pendingBustTrend, pendingCivilLiberty, pendingCivilLibertyTrend, pendingCivilUnrest, pendingCivilUnrestTrend, pendingCivilWar, pendingCivilWarTrend, pendingColdWar, pendingColdWarTrend, pendingColonisation, pendingColonisationTrend, pendingDamaged, pendingDamagedTrend, pendingDrought, pendingDroughtTrend, pendingElection, pendingElectionTrend, pendingExpansion, pendingExpansionTrend, pendingFamine, pendingFamineTrend, pendingHistoricEvent, pendingHistoricEventTrend, pendingInfrastructureFailure, pendingInfrastructureFailureTrend, pendingInvestment, pendingInvestmentTrend, pendingLockdown, pendingLockdownTrend, pendingNaturalDisaster, pendingNaturalDisasterTrend, pendingOutbreak, pendingOutbreakTrend, pendingPirateAttack, pendingPirateAttackTrend, pendingPublicHoliday, pendingPublicHolidayTrend, pendingRetreat, pendingRetreatTrend, pendingRevolution, pendingRevolutionTrend, pendingTechnologicalLeap, pendingTechnologicalLeapTrend, pendingTerroristAttack, pendingTerroristAttackTrend, pendingTradeWar, pendingTradeWarTrend, pendingUnderRepairs, pendingUnderRepairsTrend, pendingWar, pendingWarTrend) VALUES ('$datetime', '$StarSystem', '$SystemAddress', '$Name', '$Government', '$Influence', '$Allegiance', '$Happiness', '$isstateBlight', '$isstateBoom', '$isstateBust', '$isstateCivilLiberty', '$isstateCivilUnrest', '$isstateCivilWar', '$isstateColdWar', '$isstateColonisation', '$isstateDamaged', '$isstateDrought', '$isstateElection', '$isstateExpansion', '$isstateFamine', '$isstateHistoricEvent', '$isstateInfrastructureFailure', '$isstateInvestment', '$isstateLockdown', '$isstateNaturalDisaster', '$isstateOutbreak', '$isstatePirateAttack', '$isstatePublicHoliday', '$isstateRetreat', '$isstateRevolution', '$isstateTechnologicalLeap', '$isstateTerroristAttack', '$isstateTradeWar', '$isstateUnderRepairs', '$isstateWar', '$isrecBlight', $isrecBlightTrend, '$isrecBoom', $isrecBoomTrend, '$isrecBust', $isrecBustTrend, '$isrecCivilLiberty', $isrecCivilLibertyTrend, '$isrecCivilUnrest', $isrecCivilUnrestTrend, '$isrecCivilWar', $isrecCivilWarTrend, '$isrecColdWar', $isrecColdWarTrend, '$isrecColonisation', $isrecColonisationTrend, '$isrecDamaged', $isrecDamagedTrend, '$isrecDrought', $isrecDroughtTrend, '$isrecElection', $isrecElectionTrend, '$isrecExpansion', $isrecExpansionTrend, '$isrecFamine', $isrecFamineTrend, '$isrecHistoricEvent', $isrecHistoricEventTrend, '$isrecInfrastructureFailure', $isrecInfrastructureFailureTrend, '$isrecInvestment', $isrecInvestmentTrend, '$isrecLockdown', $isrecLockdownTrend, '$isrecNaturalDisaster', $isrecNaturalDisasterTrend, '$isrecOutbreak', $isrecOutbreakTrend, '$isrecPirateAttack', $isrecPirateAttackTrend, '$isrecPublicHoliday', $isrecPublicHolidayTrend, '$isrecRetreat', $isrecRetreatTrend, '$isrecRevolution', $isrecRevolutionTrend, '$isrecTechnologicalLeap', $isrecTechnologicalLeapTrend, '$isrecTerroristAttack', $isrecTerroristAttackTrend, '$isrecTradeWar', $isrecTradeWarTrend, '$isrecUnderRepairs', $isrecUnderRepairsTrend, '$isrecWar', $isrecWarTrend, '$ispendingBlight', $ispendingBlightTrend, '$ispendingBoom', $ispendingBoomTrend, '$ispendingBust', $ispendingBustTrend, '$ispendingCivilLiberty', $ispendingCivilLibertyTrend, '$ispendingCivilUnrest', $ispendingCivilUnrestTrend, '$ispendingCivilWar', $ispendingCivilWarTrend, '$ispendingColdWar', $ispendingColdWarTrend, '$ispendingColonisation', $ispendingColonisationTrend, '$ispendingDamaged', $ispendingDamagedTrend, '$ispendingDrought', $ispendingDroughtTrend, '$ispendingElection', $ispendingElectionTrend, '$ispendingExpansion', $ispendingExpansionTrend, '$ispendingFamine', $ispendingFamineTrend, '$ispendingHistoricEvent', $ispendingHistoricEventTrend, '$ispendingInfrastructureFailure', $ispendingInfrastructureFailureTrend, '$ispendingInvestment', $ispendingInvestmentTrend, '$ispendingLockdown', $ispendingLockdownTrend, '$ispendingNaturalDisaster', $ispendingNaturalDisasterTrend, '$ispendingOutbreak', $ispendingOutbreakTrend, '$ispendingPirateAttack', $ispendingPirateAttackTrend, '$ispendingPublicHoliday', $ispendingPublicHolidayTrend, '$ispendingRetreat', $ispendingRetreatTrend, '$ispendingRevolution', $ispendingRevolutionTrend, '$ispendingTechnologicalLeap', $ispendingTechnologicalLeapTrend, '$ispendingTerroristAttack', $ispendingTerroristAttackTrend, '$ispendingTradeWar', $ispendingTradeWarTrend, '$ispendingUnderRepairs', $ispendingUnderRepairsTrend, '$ispendingWar', $ispendingWarTrend)";
+            $insertfactiondata = "INSERT INTO data_factions (timestamp, StarSystem, SystemAddress, Name, Government, Influence, Allegiance, Happiness, stateBlight, stateBoom, stateBust, stateCivilLiberty, stateCivilUnrest, stateCivilWar, stateColdWar, stateColonisation, stateDamaged, stateDrought, stateElection, stateExpansion, stateFamine, stateHistoricEvent, stateInfrastructureFailure, stateInvestment, stateLockdown, stateNaturalDisaster, stateOutbreak, statePirateAttack, statePublicHoliday, stateRetreat, stateRevolution, stateTechnologicalLeap, stateTerroristAttack, stateTradeWar, stateUnderRepairs, stateWar, recBlight, recBlightTrend, recBoom, recBoomTrend, recBust, recBustTrend, recCivilLiberty, recCivilLibertyTrend, recCivilUnrest, recCivilUnrestTrend, recCivilWar, recCivilWarTrend, recColdWar, recColdWarTrend, recColonisation, recColonisationTrend, recDamaged, recDamagedTrend, recDrought, recDroughtTrend, recElection, recElectionTrend, recExpansion, recExpansionTrend, recFamine, recFamineTrend, recHistoricEvent, recHistoricEventTrend, recInfrastructureFailure, recInfrastructureFailureTrend, recInvestment, recInvestmentTrend, recLockdown, recLockdownTrend, recNaturalDisaster, recNaturalDisasterTrend, recOutbreak, recOutbreakTrend, recPirateAttack, recPirateAttackTrend, recPublicHoliday, recPublicHolidayTrend, recRetreat, recRetreatTrend, recRevolution, recRevolutionTrend, recTechnologicalLeap, recTechnologicalLeapTrend, recTerroristAttack, recTerroristAttackTrend, recTradeWar, recTradeWarTrend, recUnderRepairs, recUnderRepairsTrend, recWar, recWarTrend, pendingBlight, pendingBlightTrend, pendingBoom, pendingBoomTrend, pendingBust, pendingBustTrend, pendingCivilLiberty, pendingCivilLibertyTrend, pendingCivilUnrest, pendingCivilUnrestTrend, pendingCivilWar, pendingCivilWarTrend, pendingColdWar, pendingColdWarTrend, pendingColonisation, pendingColonisationTrend, pendingDamaged, pendingDamagedTrend, pendingDrought, pendingDroughtTrend, pendingElection, pendingElectionTrend, pendingExpansion, pendingExpansionTrend, pendingFamine, pendingFamineTrend, pendingHistoricEvent, pendingHistoricEventTrend, pendingInfrastructureFailure, pendingInfrastructureFailureTrend, pendingInvestment, pendingInvestmentTrend, pendingLockdown, pendingLockdownTrend, pendingNaturalDisaster, pendingNaturalDisasterTrend, pendingOutbreak, pendingOutbreakTrend, pendingPirateAttack, pendingPirateAttackTrend, pendingPublicHoliday, pendingPublicHolidayTrend, pendingRetreat, pendingRetreatTrend, pendingRevolution, pendingRevolutionTrend, pendingTechnologicalLeap, pendingTechnologicalLeapTrend, pendingTerroristAttack, pendingTerroristAttackTrend, pendingTradeWar, pendingTradeWarTrend, pendingUnderRepairs, pendingUnderRepairsTrend, pendingWar, pendingWarTrend) VALUES ('$datetime', '$StarSystem', '$SystemAddress', '$Name', '$Government', '$Influence', '$Allegiance', '$Happiness', '$isstateBlight', '$isstateBoom', '$isstateBust', '$isstateCivilLiberty', '$isstateCivilUnrest', '$isstateCivilWar', '$isstateColdWar', '$isstateColonisation', '$isstateDamaged', '$isstateDrought', '$isstateElection', '$isstateExpansion', '$isstateFamine', '$isstateHistoricEvent', '$isstateInfrastructureFailure', '$isstateInvestment', '$isstateLockdown', '$isstateNaturalDisaster', '$isstateOutbreak', '$isstatePirateAttack', '$isstatePublicHoliday', '$isstateRetreat', '$isstateRevolution', '$isstateTechnologicalLeap', '$isstateTerroristAttack', '$isstateTradeWar', '$isstateUnderRepairs', '$isstateWar', '$isrecBlight', $isrecBlightTrend, '$isrecBoom', $isrecBoomTrend, '$isrecBust', $isrecBustTrend, '$isrecCivilLiberty', $isrecCivilLibertyTrend, '$isrecCivilUnrest', $isrecCivilUnrestTrend, '$isrecCivilWar', $isrecCivilWarTrend, '$isrecColdWar', $isrecColdWarTrend, '$isrecColonisation', $isrecColonisationTrend, '$isrecDamaged', $isrecDamagedTrend, '$isrecDrought', $isrecDroughtTrend, '$isrecElection', $isrecElectionTrend, '$isrecExpansion', $isrecExpansionTrend, '$isrecFamine', $isrecFamineTrend, '$isrecHistoricEvent', $isrecHistoricEventTrend, '$isrecInfrastructureFailure', $isrecInfrastructureFailureTrend, '$isrecInvestment', $isrecInvestmentTrend, '$isrecLockdown', $isrecLockdownTrend, '$isrecNaturalDisaster', $isrecNaturalDisasterTrend, '$isrecOutbreak', $isrecOutbreakTrend, '$isrecPirateAttack', $isrecPirateAttackTrend, '$isrecPublicHoliday', $isrecPublicHolidayTrend, '$isrecRetreat', $isrecRetreatTrend, '$isrecRevolution', $isrecRevolutionTrend, '$isrecTechnologicalLeap', $isrecTechnologicalLeapTrend, '$isrecTerroristAttack', $isrecTerroristAttackTrend, '$isrecTradeWar', $isrecTradeWarTrend, '$isrecUnderRepairs', $isrecUnderRepairsTrend, '$isrecWar', $isrecWarTrend, '$ispendingBlight', $ispendingBlightTrend, '$ispendingBoom', $ispendingBoomTrend, '$ispendingBust', $ispendingBustTrend, '$ispendingCivilLiberty', $ispendingCivilLibertyTrend, '$ispendingCivilUnrest', $ispendingCivilUnrestTrend, '$ispendingCivilWar', $ispendingCivilWarTrend, '$ispendingColdWar', $ispendingColdWarTrend, '$ispendingColonisation', $ispendingColonisationTrend, '$ispendingDamaged', $ispendingDamagedTrend, '$ispendingDrought', $ispendingDroughtTrend, '$ispendingElection', $ispendingElectionTrend, '$ispendingExpansion', $ispendingExpansionTrend, '$ispendingFamine', $ispendingFamineTrend, '$ispendingHistoricEvent', $ispendingHistoricEventTrend, '$ispendingInfrastructureFailure', $ispendingInfrastructureFailureTrend, '$ispendingInvestment', $ispendingInvestmentTrend, '$ispendingLockdown', $ispendingLockdownTrend, '$ispendingNaturalDisaster', $ispendingNaturalDisasterTrend, '$ispendingOutbreak', $ispendingOutbreakTrend, '$ispendingPirateAttack', $ispendingPirateAttackTrend, '$ispendingPublicHoliday', $ispendingPublicHolidayTrend, '$ispendingRetreat', $ispendingRetreatTrend, '$ispendingRevolution', $ispendingRevolutionTrend, '$ispendingTechnologicalLeap', $ispendingTechnologicalLeapTrend, '$ispendingTerroristAttack', $ispendingTerroristAttackTrend, '$ispendingTradeWar', $ispendingTradeWarTrend, '$ispendingUnderRepairs', $ispendingUnderRepairsTrend, '$ispendingWar', $ispendingWarTrend)";
 
             if (!mysqli_query($con, $insertfactiondata)) {
               $sqlerror = true;
@@ -670,34 +682,34 @@ if($apiresult = mysqli_query($con, $apiquery)){
             }
 
             // check if entry already exists for same tick/faction/starsystem/systemaddress, delete these rows
-            $factionsnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND isfaction = '1' AND Name = '$Name' AND factionsystem = '$StarSystem' AND factionaddress = '$SystemAddress'";
+            $factionsnapshotquery = "SELECT * FROM act_snapshot_factions WHERE tickid = '$newtickid' AND Name = '$Name' AND StarSystem = '$StarSystem' AND SystemAddress = '$SystemAddress'";
             if($factionsnapshotresult = mysqli_query($con, $factionsnapshotquery)){
               if(mysqli_num_rows($factionsnapshotresult) > 0){
                 while($row = mysqli_fetch_array($factionsnapshotresult, MYSQLI_ASSOC)) {
                   $rownumber = $row['id'];
-                  $factionsnapshotdeletequery = "DELETE FROM activesnapshot WHERE id = '$rownumber' AND tickid = '$newtickid' AND isfaction = '1'";
+                  $factionsnapshotdeletequery = "DELETE FROM act_snapshot_factions WHERE id = '$rownumber'";
                   if (mysqli_query($con, $factionsnapshotdeletequery)) {
                     $log = file_get_contents($logfile);
-                    $log .= "Removed faction (".$Name." / ".$StarSystem.") from activesnapshots\n";
+                    $log .= "Removed faction (".$Name." / ".$StarSystem.") from active snapshot\n";
                     file_put_contents($logfile, $log);
                   } else {
                     $log = file_get_contents($logfile);
-                    $log .= "Couldn't remove faction (".$Name." / ".$StarSystem.") from activesnapshots: ".mysqli_error($con)."\n";
+                    $log .= "Couldn't remove faction (".$Name." / ".$StarSystem.") from active snapshot: ".mysqli_error($con)."\n";
                     file_put_contents($logfile, $log);
                   }
                 }
               }
             }
 
-            $snapshotfactiondata = "INSERT INTO activesnapshot (tickid, timestamp, issystem, isfaction, isconflict, factionsystem, factionaddress, Name, Government, Influence, Allegiance, Happiness, stateBlight, stateBoom, stateBust, stateCivilLiberty, stateCivilUnrest, stateCivilWar, stateColdWar, stateColonisation, stateDamaged, stateDrought, stateElection, stateExpansion, stateFamine, stateHistoricEvent, stateInfrastructureFailure, stateInvestment, stateLockdown, stateNaturalDisaster, stateOutbreak, statePirateAttack, statePublicHoliday, stateRetreat, stateRevolution, stateTechnologicalLeap, stateTerroristAttack, stateTradeWar, stateUnderRepairs, stateWar, recBlight, recBlightTrend, recBoom, recBoomTrend, recBust, recBustTrend, recCivilLiberty, recCivilLibertyTrend, recCivilUnrest, recCivilUnrestTrend, recCivilWar, recCivilWarTrend, recColdWar, recColdWarTrend, recColonisation, recColonisationTrend, recDamaged, recDamagedTrend, recDrought, recDroughtTrend, recElection, recElectionTrend, recExpansion, recExpansionTrend, recFamine, recFamineTrend, recHistoricEvent, recHistoricEventTrend, recInfrastructureFailure, recInfrastructureFailureTrend, recInvestment, recInvestmentTrend, recLockdown, recLockdownTrend, recNaturalDisaster, recNaturalDisasterTrend, recOutbreak, recOutbreakTrend, recPirateAttack, recPirateAttackTrend, recPublicHoliday, recPublicHolidayTrend, recRetreat, recRetreatTrend, recRevolution, recRevolutionTrend, recTechnologicalLeap, recTechnologicalLeapTrend, recTerroristAttack, recTerroristAttackTrend, recTradeWar, recTradeWarTrend, recUnderRepairs, recUnderRepairsTrend, recWar, recWarTrend, pendingBlight, pendingBlightTrend, pendingBoom, pendingBoomTrend, pendingBust, pendingBustTrend, pendingCivilLiberty, pendingCivilLibertyTrend, pendingCivilUnrest, pendingCivilUnrestTrend, pendingCivilWar, pendingCivilWarTrend, pendingColdWar, pendingColdWarTrend, pendingColonisation, pendingColonisationTrend, pendingDamaged, pendingDamagedTrend, pendingDrought, pendingDroughtTrend, pendingElection, pendingElectionTrend, pendingExpansion, pendingExpansionTrend, pendingFamine, pendingFamineTrend, pendingHistoricEvent, pendingHistoricEventTrend, pendingInfrastructureFailure, pendingInfrastructureFailureTrend, pendingInvestment, pendingInvestmentTrend, pendingLockdown, pendingLockdownTrend, pendingNaturalDisaster, pendingNaturalDisasterTrend, pendingOutbreak, pendingOutbreakTrend, pendingPirateAttack, pendingPirateAttackTrend, pendingPublicHoliday, pendingPublicHolidayTrend, pendingRetreat, pendingRetreatTrend, pendingRevolution, pendingRevolutionTrend, pendingTechnologicalLeap, pendingTechnologicalLeapTrend, pendingTerroristAttack, pendingTerroristAttackTrend, pendingTradeWar, pendingTradeWarTrend, pendingUnderRepairs, pendingUnderRepairsTrend, pendingWar, pendingWarTrend) VALUES ('$newtickid', '$datetime', '0', '1', '0', '$StarSystem', '$SystemAddress', '$Name', '$Government', '$Influence', '$Allegiance', '$Happiness', '$isstateBlight', '$isstateBoom', '$isstateBust', '$isstateCivilLiberty', '$isstateCivilUnrest', '$isstateCivilWar', '$isstateColdWar', '$isstateColonisation', '$isstateDamaged', '$isstateDrought', '$isstateElection', '$isstateExpansion', '$isstateFamine', '$isstateHistoricEvent', '$isstateInfrastructureFailure', '$isstateInvestment', '$isstateLockdown', '$isstateNaturalDisaster', '$isstateOutbreak', '$isstatePirateAttack', '$isstatePublicHoliday', '$isstateRetreat', '$isstateRevolution', '$isstateTechnologicalLeap', '$isstateTerroristAttack', '$isstateTradeWar', '$isstateUnderRepairs', '$isstateWar', '$isrecBlight', $isrecBlightTrend, '$isrecBoom', $isrecBoomTrend, '$isrecBust', $isrecBustTrend, '$isrecCivilLiberty', $isrecCivilLibertyTrend, '$isrecCivilUnrest', $isrecCivilUnrestTrend, '$isrecCivilWar', $isrecCivilWarTrend, '$isrecColdWar', $isrecColdWarTrend, '$isrecColonisation', $isrecColonisationTrend, '$isrecDamaged', $isrecDamagedTrend, '$isrecDrought', $isrecDroughtTrend, '$isrecElection', $isrecElectionTrend, '$isrecExpansion', $isrecExpansionTrend, '$isrecFamine', $isrecFamineTrend, '$isrecHistoricEvent', $isrecHistoricEventTrend, '$isrecInfrastructureFailure', $isrecInfrastructureFailureTrend, '$isrecInvestment', $isrecInvestmentTrend, '$isrecLockdown', $isrecLockdownTrend, '$isrecNaturalDisaster', $isrecNaturalDisasterTrend, '$isrecOutbreak', $isrecOutbreakTrend, '$isrecPirateAttack', $isrecPirateAttackTrend, '$isrecPublicHoliday', $isrecPublicHolidayTrend, '$isrecRetreat', $isrecRetreatTrend, '$isrecRevolution', $isrecRevolutionTrend, '$isrecTechnologicalLeap', $isrecTechnologicalLeapTrend, '$isrecTerroristAttack', $isrecTerroristAttackTrend, '$isrecTradeWar', $isrecTradeWarTrend, '$isrecUnderRepairs', $isrecUnderRepairsTrend, '$isrecWar', $isrecWarTrend, '$ispendingBlight', $ispendingBlightTrend, '$ispendingBoom', $ispendingBoomTrend, '$ispendingBust', $ispendingBustTrend, '$ispendingCivilLiberty', $ispendingCivilLibertyTrend, '$ispendingCivilUnrest', $ispendingCivilUnrestTrend, '$ispendingCivilWar', $ispendingCivilWarTrend, '$ispendingColdWar', $ispendingColdWarTrend, '$ispendingColonisation', $ispendingColonisationTrend, '$ispendingDamaged', $ispendingDamagedTrend, '$ispendingDrought', $ispendingDroughtTrend, '$ispendingElection', $ispendingElectionTrend, '$ispendingExpansion', $ispendingExpansionTrend, '$ispendingFamine', $ispendingFamineTrend, '$ispendingHistoricEvent', $ispendingHistoricEventTrend, '$ispendingInfrastructureFailure', $ispendingInfrastructureFailureTrend, '$ispendingInvestment', $ispendingInvestmentTrend, '$ispendingLockdown', $ispendingLockdownTrend, '$ispendingNaturalDisaster', $ispendingNaturalDisasterTrend, '$ispendingOutbreak', $ispendingOutbreakTrend, '$ispendingPirateAttack', $ispendingPirateAttackTrend, '$ispendingPublicHoliday', $ispendingPublicHolidayTrend, '$ispendingRetreat', $ispendingRetreatTrend, '$ispendingRevolution', $ispendingRevolutionTrend, '$ispendingTechnologicalLeap', $ispendingTechnologicalLeapTrend, '$ispendingTerroristAttack', $ispendingTerroristAttackTrend, '$ispendingTradeWar', $ispendingTradeWarTrend, '$ispendingUnderRepairs', $ispendingUnderRepairsTrend, '$ispendingWar', $ispendingWarTrend)";
+            $snapshotfactiondata = "INSERT INTO act_snapshot_factions (tickid, timestamp, StarSystem, SystemAddress, Name, Government, Influence, Allegiance, Happiness, stateBlight, stateBoom, stateBust, stateCivilLiberty, stateCivilUnrest, stateCivilWar, stateColdWar, stateColonisation, stateDamaged, stateDrought, stateElection, stateExpansion, stateFamine, stateHistoricEvent, stateInfrastructureFailure, stateInvestment, stateLockdown, stateNaturalDisaster, stateOutbreak, statePirateAttack, statePublicHoliday, stateRetreat, stateRevolution, stateTechnologicalLeap, stateTerroristAttack, stateTradeWar, stateUnderRepairs, stateWar, recBlight, recBlightTrend, recBoom, recBoomTrend, recBust, recBustTrend, recCivilLiberty, recCivilLibertyTrend, recCivilUnrest, recCivilUnrestTrend, recCivilWar, recCivilWarTrend, recColdWar, recColdWarTrend, recColonisation, recColonisationTrend, recDamaged, recDamagedTrend, recDrought, recDroughtTrend, recElection, recElectionTrend, recExpansion, recExpansionTrend, recFamine, recFamineTrend, recHistoricEvent, recHistoricEventTrend, recInfrastructureFailure, recInfrastructureFailureTrend, recInvestment, recInvestmentTrend, recLockdown, recLockdownTrend, recNaturalDisaster, recNaturalDisasterTrend, recOutbreak, recOutbreakTrend, recPirateAttack, recPirateAttackTrend, recPublicHoliday, recPublicHolidayTrend, recRetreat, recRetreatTrend, recRevolution, recRevolutionTrend, recTechnologicalLeap, recTechnologicalLeapTrend, recTerroristAttack, recTerroristAttackTrend, recTradeWar, recTradeWarTrend, recUnderRepairs, recUnderRepairsTrend, recWar, recWarTrend, pendingBlight, pendingBlightTrend, pendingBoom, pendingBoomTrend, pendingBust, pendingBustTrend, pendingCivilLiberty, pendingCivilLibertyTrend, pendingCivilUnrest, pendingCivilUnrestTrend, pendingCivilWar, pendingCivilWarTrend, pendingColdWar, pendingColdWarTrend, pendingColonisation, pendingColonisationTrend, pendingDamaged, pendingDamagedTrend, pendingDrought, pendingDroughtTrend, pendingElection, pendingElectionTrend, pendingExpansion, pendingExpansionTrend, pendingFamine, pendingFamineTrend, pendingHistoricEvent, pendingHistoricEventTrend, pendingInfrastructureFailure, pendingInfrastructureFailureTrend, pendingInvestment, pendingInvestmentTrend, pendingLockdown, pendingLockdownTrend, pendingNaturalDisaster, pendingNaturalDisasterTrend, pendingOutbreak, pendingOutbreakTrend, pendingPirateAttack, pendingPirateAttackTrend, pendingPublicHoliday, pendingPublicHolidayTrend, pendingRetreat, pendingRetreatTrend, pendingRevolution, pendingRevolutionTrend, pendingTechnologicalLeap, pendingTechnologicalLeapTrend, pendingTerroristAttack, pendingTerroristAttackTrend, pendingTradeWar, pendingTradeWarTrend, pendingUnderRepairs, pendingUnderRepairsTrend, pendingWar, pendingWarTrend) VALUES ('$newtickid', '$datetime', '$StarSystem', '$SystemAddress', '$Name', '$Government', '$Influence', '$Allegiance', '$Happiness', '$isstateBlight', '$isstateBoom', '$isstateBust', '$isstateCivilLiberty', '$isstateCivilUnrest', '$isstateCivilWar', '$isstateColdWar', '$isstateColonisation', '$isstateDamaged', '$isstateDrought', '$isstateElection', '$isstateExpansion', '$isstateFamine', '$isstateHistoricEvent', '$isstateInfrastructureFailure', '$isstateInvestment', '$isstateLockdown', '$isstateNaturalDisaster', '$isstateOutbreak', '$isstatePirateAttack', '$isstatePublicHoliday', '$isstateRetreat', '$isstateRevolution', '$isstateTechnologicalLeap', '$isstateTerroristAttack', '$isstateTradeWar', '$isstateUnderRepairs', '$isstateWar', '$isrecBlight', $isrecBlightTrend, '$isrecBoom', $isrecBoomTrend, '$isrecBust', $isrecBustTrend, '$isrecCivilLiberty', $isrecCivilLibertyTrend, '$isrecCivilUnrest', $isrecCivilUnrestTrend, '$isrecCivilWar', $isrecCivilWarTrend, '$isrecColdWar', $isrecColdWarTrend, '$isrecColonisation', $isrecColonisationTrend, '$isrecDamaged', $isrecDamagedTrend, '$isrecDrought', $isrecDroughtTrend, '$isrecElection', $isrecElectionTrend, '$isrecExpansion', $isrecExpansionTrend, '$isrecFamine', $isrecFamineTrend, '$isrecHistoricEvent', $isrecHistoricEventTrend, '$isrecInfrastructureFailure', $isrecInfrastructureFailureTrend, '$isrecInvestment', $isrecInvestmentTrend, '$isrecLockdown', $isrecLockdownTrend, '$isrecNaturalDisaster', $isrecNaturalDisasterTrend, '$isrecOutbreak', $isrecOutbreakTrend, '$isrecPirateAttack', $isrecPirateAttackTrend, '$isrecPublicHoliday', $isrecPublicHolidayTrend, '$isrecRetreat', $isrecRetreatTrend, '$isrecRevolution', $isrecRevolutionTrend, '$isrecTechnologicalLeap', $isrecTechnologicalLeapTrend, '$isrecTerroristAttack', $isrecTerroristAttackTrend, '$isrecTradeWar', $isrecTradeWarTrend, '$isrecUnderRepairs', $isrecUnderRepairsTrend, '$isrecWar', $isrecWarTrend, '$ispendingBlight', $ispendingBlightTrend, '$ispendingBoom', $ispendingBoomTrend, '$ispendingBust', $ispendingBustTrend, '$ispendingCivilLiberty', $ispendingCivilLibertyTrend, '$ispendingCivilUnrest', $ispendingCivilUnrestTrend, '$ispendingCivilWar', $ispendingCivilWarTrend, '$ispendingColdWar', $ispendingColdWarTrend, '$ispendingColonisation', $ispendingColonisationTrend, '$ispendingDamaged', $ispendingDamagedTrend, '$ispendingDrought', $ispendingDroughtTrend, '$ispendingElection', $ispendingElectionTrend, '$ispendingExpansion', $ispendingExpansionTrend, '$ispendingFamine', $ispendingFamineTrend, '$ispendingHistoricEvent', $ispendingHistoricEventTrend, '$ispendingInfrastructureFailure', $ispendingInfrastructureFailureTrend, '$ispendingInvestment', $ispendingInvestmentTrend, '$ispendingLockdown', $ispendingLockdownTrend, '$ispendingNaturalDisaster', $ispendingNaturalDisasterTrend, '$ispendingOutbreak', $ispendingOutbreakTrend, '$ispendingPirateAttack', $ispendingPirateAttackTrend, '$ispendingPublicHoliday', $ispendingPublicHolidayTrend, '$ispendingRetreat', $ispendingRetreatTrend, '$ispendingRevolution', $ispendingRevolutionTrend, '$ispendingTechnologicalLeap', $ispendingTechnologicalLeapTrend, '$ispendingTerroristAttack', $ispendingTerroristAttackTrend, '$ispendingTradeWar', $ispendingTradeWarTrend, '$ispendingUnderRepairs', $ispendingUnderRepairsTrend, '$ispendingWar', $ispendingWarTrend)";
             if (mysqli_query($con, $snapshotfactiondata)) {
               $log = file_get_contents($logfile);
-              $log .= "Added faction (".$Name." / ".$StarSystem.") to activesnapshots\n";
+              $log .= "Added faction (".$Name." / ".$StarSystem.") to active snapshot\n";
               $log .= $snapshotfactiondata."\n";
               file_put_contents($logfile, $log);
             } else {
               $log = file_get_contents($logfile);
-              $log .= "Couldn't add faction (".$Name." / ".$StarSystem.") to activesnapshots: ".mysqli_error($con)."\n";
+              $log .= "Couldn't add faction (".$Name." / ".$StarSystem.") to active snapshot: ".mysqli_error($con)."\n";
               $log .= $snapshotfactiondata."\n";
               file_put_contents($logfile, $log);
             }
@@ -706,79 +718,81 @@ if($apiresult = mysqli_query($con, $apiquery)){
           if (!$sqlerror) {
             // for each conflict entry, gather data, and insert
             $sqlerror = false;
-            foreach($data['Conflicts'] as $conflictdata) {
-              $conflicttype = $conflictdata['WarType'];
-              $conflictstatus = $conflictdata['Status'];
-              if ($conflictstatus == 'active') {
-                $conflictstatus = 'Active';
-              } elseif ($conflictstatus == 'pending') {
-                $conflictstatus = 'Pending';
-              }
-              if ($conflicttype == 'war') {
-                $conflicttype = 'War';
-              } elseif ($conflicttype == 'civilwar') {
-                $conflicttype = 'Civil War';
-              } elseif ($conflicttype == 'coldwar') {
-                $conflicttype = 'Cold War';
-              } elseif ($conflicttype == 'election') {
-                $conflicttype = 'Election';
-              } elseif ($conflicttype == 'civilliberty') {
-                $conflicttype = 'Civil Liberty';
-              } elseif ($conflicttype == 'civilunrest') {
-                $conflicttype = 'Civil Unrest';
-              }
-              $conflictfaction1name = addslashes($conflictdata['Faction1']['Name']);
-              $conflictfaction1stake = addslashes($conflictdata['Faction1']['Stake']);
-              $conflictfaction1windays = $conflictdata['Faction1']['WonDays'];
-              $conflictfaction2name = addslashes($conflictdata['Faction2']['Name']);
-              $conflictfaction2stake = addslashes($conflictdata['Faction2']['Stake']);
-              $conflictfaction2windays = $conflictdata['Faction2']['WonDays'];
+            if (isset($data['Conflicts'])) {
+              foreach($data['Conflicts'] as $conflictdata) {
+                $conflicttype = $conflictdata['WarType'];
+                $conflictstatus = $conflictdata['Status'];
+                if ($conflictstatus == 'active') {
+                  $conflictstatus = 'Active';
+                } elseif ($conflictstatus == 'pending') {
+                  $conflictstatus = 'Pending';
+                }
+                if ($conflicttype == 'war') {
+                  $conflicttype = 'War';
+                } elseif ($conflicttype == 'civilwar') {
+                  $conflicttype = 'Civil War';
+                } elseif ($conflicttype == 'coldwar') {
+                  $conflicttype = 'Cold War';
+                } elseif ($conflicttype == 'election') {
+                  $conflicttype = 'Election';
+                } elseif ($conflicttype == 'civilliberty') {
+                  $conflicttype = 'Civil Liberty';
+                } elseif ($conflicttype == 'civilunrest') {
+                  $conflicttype = 'Civil Unrest';
+                }
+                $conflictfaction1name = addslashes($conflictdata['Faction1']['Name']);
+                $conflictfaction1stake = addslashes($conflictdata['Faction1']['Stake']);
+                $conflictfaction1windays = $conflictdata['Faction1']['WonDays'];
+                $conflictfaction2name = addslashes($conflictdata['Faction2']['Name']);
+                $conflictfaction2stake = addslashes($conflictdata['Faction2']['Stake']);
+                $conflictfaction2windays = $conflictdata['Faction2']['WonDays'];
 
-              $insertconflictdata = "INSERT INTO conflictdata (timestamp, StarSystem, SystemAddress, conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays) VALUES ('$datetime', '$StarSystem', '$SystemAddress', '$conflicttype', '$conflictstatus', '$conflictfaction1name', '$conflictfaction1stake', '$conflictfaction1windays', '$conflictfaction2name', '$conflictfaction2stake', '$conflictfaction2windays')";
-              if (!mysqli_query($con, $insertconflictdata)) {
-                $sqlerror = true;
-                $sqlerrormessage = mysqli_error($con);
-              }
-              if (!$sqlerror) {
-                $log = file_get_contents($logfile);
-                $log .= "Added conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to conflictdata\n";
-                $log .= $insertconflictdata."\n";
-                file_put_contents($logfile, $log);
-              }
+                $insertconflictdata = "INSERT INTO data_conflicts (timestamp, StarSystem, SystemAddress, conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays) VALUES ('$datetime', '$StarSystem', '$SystemAddress', '$conflicttype', '$conflictstatus', '$conflictfaction1name', '$conflictfaction1stake', '$conflictfaction1windays', '$conflictfaction2name', '$conflictfaction2stake', '$conflictfaction2windays')";
+                if (!mysqli_query($con, $insertconflictdata)) {
+                  $sqlerror = true;
+                  $sqlerrormessage = mysqli_error($con);
+                }
+                if (!$sqlerror) {
+                  $log = file_get_contents($logfile);
+                  $log .= "Added conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to conflictdata\n";
+                  $log .= $insertconflictdata."\n";
+                  file_put_contents($logfile, $log);
+                }
 
-              // check if entry already exists for same tick/starsystem/systemaddress/conflicttype/conflictstatus/conflictfaction1/conflictfaction2, delete these rows
-              $conflictsnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND isconflict = '1' AND StarSystem = '$StarSystem' AND SystemAddress = '$SystemAddress' AND conflicttype = '$conflicttype' AND conflictstatus = '$conflictstatus' AND ((conflictfaction1name = '$conflictfaction1name' AND conflictfaction2name = '$conflictfaction2name') OR (conflictfaction1name = '$conflictfaction2name' AND conflictfaction2name = '$conflictfaction1name'))";
-              if($conflictsnapshotresult = mysqli_query($con, $conflictsnapshotquery)){
-                if(mysqli_num_rows($conflictsnapshotresult) > 0){
-                  while($row = mysqli_fetch_array($conflictsnapshotresult, MYSQLI_ASSOC)) {
-                    $rownumber = $row['id'];
-                    $conflictsnapshotdeletequery = "DELETE FROM activesnapshot WHERE id = '$rownumber' AND tickid = '$newtickid' AND isconflict = '1'";
-                    if (mysqli_query($con, $conflictsnapshotdeletequery)) {
-                      $log = file_get_contents($logfile);
-                      $log .= "Removed conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from activesnapshots\n";
-                      file_put_contents($logfile, $log);
-                    } else {
-                      $log = file_get_contents($logfile);
-                      $log .= "Couldn't remove conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from activesnapshots: ".mysqli_error($con)."\n";
-                      file_put_contents($logfile, $log);
+                // check if entry already exists for same tick/starsystem/systemaddress/conflicttype/conflictstatus/conflictfaction1/conflictfaction2, delete these rows
+                $conflictsnapshotquery = "SELECT * FROM act_snapshot_conflicts WHERE tickid = '$newtickid' AND StarSystem = '$StarSystem' AND SystemAddress = '$SystemAddress' AND conflicttype = '$conflicttype' AND conflictstatus = '$conflictstatus' AND ((conflictfaction1name = '$conflictfaction1name' AND conflictfaction2name = '$conflictfaction2name') OR (conflictfaction1name = '$conflictfaction2name' AND conflictfaction2name = '$conflictfaction1name'))";
+                if($conflictsnapshotresult = mysqli_query($con, $conflictsnapshotquery)){
+                  if(mysqli_num_rows($conflictsnapshotresult) > 0){
+                    while($row = mysqli_fetch_array($conflictsnapshotresult, MYSQLI_ASSOC)) {
+                      $rownumber = $row['id'];
+                      $conflictsnapshotdeletequery = "DELETE FROM act_snapshot_conflicts WHERE id = '$rownumber'";
+                      if (mysqli_query($con, $conflictsnapshotdeletequery)) {
+                        $log = file_get_contents($logfile);
+                        $log .= "Removed conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from active snapshot\n";
+                        file_put_contents($logfile, $log);
+                      } else {
+                        $log = file_get_contents($logfile);
+                        $log .= "Couldn't remove conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") from active snapshot: ".mysqli_error($con)."\n";
+                        file_put_contents($logfile, $log);
+                      }
                     }
                   }
                 }
-              }
 
-              $snapshotconflictdata = "INSERT INTO activesnapshot (tickid, timestamp, issystem, isfaction, isconflict, StarSystem, SystemAddress, conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays) VALUES ('$newtickid', '$datetime', '0', '0', '1', '$StarSystem', '$SystemAddress', '$conflicttype', '$conflictstatus', '$conflictfaction1name', '$conflictfaction1stake', '$conflictfaction1windays', '$conflictfaction2name', '$conflictfaction2stake', '$conflictfaction2windays')";
-              if (mysqli_query($con, $snapshotconflictdata)) {
-                $log = file_get_contents($logfile);
-                $log .= "Added conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots\n";
-                $log .= $snapshotconflictdata."\n";
-                file_put_contents($logfile, $log);
-              } else {
-                $log = file_get_contents($logfile);
-                $log .= "Couldn't add conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots: ".mysqli_error($con)."\n";
-                $log .= $snapshotconflictdata."\n";
-                file_put_contents($logfile, $log);
-              }
+                $snapshotconflictdata = "INSERT INTO act_snapshot_conflicts (tickid, timestamp, StarSystem, SystemAddress, conflicttype, conflictstatus, conflictfaction1name, conflictfaction1stake, conflictfaction1windays, conflictfaction2name, conflictfaction2stake, conflictfaction2windays) VALUES ('$newtickid', '$datetime', '$StarSystem', '$SystemAddress', '$conflicttype', '$conflictstatus', '$conflictfaction1name', '$conflictfaction1stake', '$conflictfaction1windays', '$conflictfaction2name', '$conflictfaction2stake', '$conflictfaction2windays')";
+                if (mysqli_query($con, $snapshotconflictdata)) {
+                  $log = file_get_contents($logfile);
+                  $log .= "Added conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to active snapshot\n";
+                  $log .= $snapshotconflictdata."\n";
+                  file_put_contents($logfile, $log);
+                } else {
+                  $log = file_get_contents($logfile);
+                  $log .= "Couldn't add conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to active snapshot: ".mysqli_error($con)."\n";
+                  $log .= $snapshotconflictdata."\n";
+                  file_put_contents($logfile, $log);
+                }
 
+              }
             }
             if (!$sqlerror) {
               $log = file_get_contents($logfile);
@@ -789,7 +803,7 @@ if($apiresult = mysqli_query($con, $apiquery)){
               exit();
             } else {
               $log = file_get_contents($logfile);
-              $log .= "Couldn't add conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to activesnapshots: ".mysqli_error($con)."\n";
+              $log .= "Couldn't add conflict ".$conflicttype." (".$conflictfaction1name." / ".$conflictfaction2name.") to active snapshot: ".mysqli_error($con)."\n";
               file_put_contents($logfile, $log);
               json_response(406, 'sql query error', $sqlerrormessage);
               exit();
@@ -847,7 +861,7 @@ if($apiresult = mysqli_query($con, $apiquery)){
       file_put_contents($logfile, $log);
 
       $idafaction = false;
-      if ($data['Faction'] == 'Independent Defence Agency' || $data['TargetFaction'] == 'Independent Defence Agency') {
+      if ($data['Faction'] == $pmfname || (isset($data['TargetFaction']) && $data['TargetFaction'] == $pmfname)) {
         $idafaction = true;
       }
 
@@ -942,10 +956,6 @@ if($apiresult = mysqli_query($con, $apiquery)){
           }
         }
 
-        $log = file_get_contents($logfile);
-        $log .= "count = ".count($reward)."\n";
-        file_put_contents($logfile, $log);
-
         if (count($reward) > 1) {
           $faction2address = $reward[1]['factionaddress'];
           $faction2system = addslashes($reward[1]['factionsystem']);
@@ -974,16 +984,13 @@ if($apiresult = mysqli_query($con, $apiquery)){
           json_response(200, 'Success');
           exit();
         } else {
-          $insertrewarddata = "INSERT INTO influencerewards (
-missionid, timestamp, faction1address, faction1system, faction1name, faction1reward, faction1trend, faction2address, faction2system, faction2name, faction2reward, faction2trend )  VALUES (
-'$MissionID', '$datetime', '$faction1address', '$faction1system', '$faction1name', '$faction1reward', '$faction1trend', '$faction2address', '$faction2system', '$faction2name', '$faction2reward', '$faction2trend')";
-
+          $insertrewarddata = "INSERT INTO data_missionrewards (missionid, timestamp, userid, faction1address, faction1system, faction1name, faction1reward, faction1trend, faction2address, faction2system, faction2name, faction2reward, faction2trend)  VALUES ('$MissionID', '$datetime', '$apiid', '$faction1address', '$faction1system', '$faction1name', '$faction1reward', '$faction1trend', '$faction2address', '$faction2system', '$faction2name', '$faction2reward', '$faction2trend')";
           if (mysqli_query($con, $insertrewarddata)) {
             $log = file_get_contents($logfile);
             if ($faction2name) {
-              $log .= "Added reward (".$faction1name." / ".$faction2name.") to influencerewards\n";
+              $log .= "Added reward (".$faction1name." / ".$faction2name.") to data_missionrewards\n";
             } else {
-              $log .= "Added reward (".$faction1name.") to influencerewards\n";
+              $log .= "Added reward (".$faction1name.") to data_missionrewards\n";
             }
             file_put_contents($logfile, $log);
 
@@ -991,28 +998,28 @@ missionid, timestamp, faction1address, faction1system, faction1name, faction1rew
               $factionaddress = $factionreward['factionaddress'];
               $factionsystem = addslashes($factionreward['factionsystem']);
               $factionname = $factionreward['factionname'];
-              $factionreward = $factionreward['influence'];
+              $factioninfreward = $factionreward['influence'];
               $factiontrend = $factionreward['trend'];
 
-              $rewardsnapshotquery = "SELECT * FROM activesnapshot WHERE tickid = '$newtickid' AND ismissionreward = '1' AND SystemAddress = '$factionaddress' AND rewardfaction = '$factionname'";
+              $rewardsnapshotquery = "SELECT * FROM act_snapshot_missionrewards WHERE tickid = '$newtickid' AND SystemAddress = '$factionaddress' AND rewardfaction = '$factionname'";
               if($rewardsnapshotresult = mysqli_query($con, $rewardsnapshotquery)){
                 if(mysqli_num_rows($rewardsnapshotresult) > 0){
                   while($row = mysqli_fetch_array($rewardsnapshotresult, MYSQLI_ASSOC)) {
                     $rownumber = $row['id'];
-                    $rewardsnapshotdeletequery = "DELETE FROM activesnapshot WHERE id = '$rownumber' AND tickid = '$newtickid' AND ismissionreward = '1'";
+                    $rewardsnapshotdeletequery = "DELETE FROM act_snapshot_missionrewards WHERE id = '$rownumber'";
                     if (mysqli_query($con, $rewardsnapshotdeletequery)) {
                       $log = file_get_contents($logfile);
-                      $log .= "Removed missionrewards for ".$factionname." (".$factionsystem.") from activesnapshots\n";
+                      $log .= "Removed missionrewards for ".$factionname." (".$factionsystem.") from active snapshot\n";
                       file_put_contents($logfile, $log);
                     } else {
                       $log = file_get_contents($logfile);
-                      $log .= "Couldn't remove missionrewards for ".$factionname." (".$factionsystem.") from activesnapshots: ".mysqli_error($con)."\n";
+                      $log .= "Couldn't remove missionrewards for ".$factionname." (".$factionsystem.") from active snapshot: ".mysqli_error($con)."\n";
                       file_put_contents($logfile, $log);
                     }
                   }
                 } else {
                   $log = file_get_contents($logfile);
-                  $log .= "No missionrewards to remove for ".$factionname." (".$factionsystem.") from activesnapshots\n";
+                  $log .= "No missionrewards to remove for ".$factionname." (".$factionsystem.") from active snapshot\n";
                   file_put_contents($logfile, $log);                  
                 }
               } else {
@@ -1021,10 +1028,11 @@ missionid, timestamp, faction1address, faction1system, faction1name, faction1rew
                 file_put_contents($logfile, $log);
               }
               
-              $rewardcountquery = "SELECT * FROM influencerewards WHERE timestamp > '$newtick' AND (faction1address = '$factionaddress' OR faction2address = '$factionaddress') AND (faction1name = '$factionname' OR faction2name = '$factionname')";
+              $rewardcountquery = "SELECT * FROM data_missionrewards WHERE timestamp > '$newtick' AND (faction1address = '$factionaddress' OR faction2address = '$factionaddress') AND (faction1name = '$factionname' OR faction2name = '$factionname')";
               if($rewardcountresult = mysqli_query($con, $rewardcountquery)){
                 if(mysqli_num_rows($rewardcountresult) > 0){
                   $amount = 0;
+                  $trend = '';
                   while($row2 = mysqli_fetch_array($rewardcountresult, MYSQLI_ASSOC)) {
                     if ($row2['faction1name'] == $factionname) {
                       $amount = $amount + $row2['faction1reward'];
@@ -1033,23 +1041,19 @@ missionid, timestamp, faction1address, faction1system, faction1name, faction1rew
                     }
                   }
                 } else {
-                  $amount = $factionreward;
+                  $amount = $factioninfreward;
                 }
 
-                $insertrewarddatasnapshot = "INSERT INTO activesnapshot (ismissionreward, tickid, timestamp, StarSystem, SystemAddress, rewardfaction, rewardtotal, rewardtrend )  VALUES ('1', '$newtickid', '$datetime', '$factionsystem', '$factionaddress', '$factionname', '$amount', '$factiontrend')";
+                $insertrewarddatasnapshot = "INSERT INTO act_snapshot_missionrewards (tickid, timestamp, StarSystem, SystemAddress, rewardfaction, rewardtotal, rewardtrend )  VALUES ('$newtickid', '$datetime', '$factionsystem', '$factionaddress', '$factionname', '$amount', '$factiontrend')";
                 if (mysqli_query($con, $insertrewarddatasnapshot)) {
                   $log = file_get_contents($logfile);
-                  $log .= "Added missionreward totals ".$amount." (".$factionname." / ".$factionsystem.") to activesnapshots\n";
+                  $log .= "Added missionreward totals ".$amount." (".$factionname." / ".$factionsystem.") to active snapshot\n";
                   file_put_contents($logfile, $log);
                 } else {
                   $log = file_get_contents($logfile);
-                  $log .= "Couldn't add missionreward totals ".$amount." (".$factionname." / ".$factionsystem.") to activesnapshots: ".mysqli_error($con)."\n";
+                  $log .= "Couldn't add missionreward totals ".$amount." (".$factionname." / ".$factionsystem.") to active snapshot: ".mysqli_error($con)."\n";
                   file_put_contents($logfile, $log);
                 }
-
-
-
-
               } else {
                 $log = file_get_contents($logfile);
                 $log .= "SQL error: ".$rewardcountquery."\n";
@@ -1097,7 +1101,30 @@ missionid, timestamp, faction1address, faction1system, faction1name, faction1rew
 
 
 
-
+    } elseif ($dataevent == 'MultiSellExplorationData') {
+      $log = file_get_contents($logfile);
+      $log .= "API not ready yet (MultiSellExplorationData)\n";
+      file_put_contents($logfile, $log);
+      json_response(202, 'API not ready yet');
+      exit();
+    } elseif ($dataevent == 'SellExplorationData') {
+      $log = file_get_contents($logfile);
+      $log .= "API not ready yet (SellExplorationData)\n";
+      file_put_contents($logfile, $log);
+      json_response(202, 'API not ready yet');
+      exit();
+    } elseif ($dataevent == 'RedeemVoucher') {
+      $log = file_get_contents($logfile);
+      $log .= "API not ready yet (RedeemVoucher)\n";
+      file_put_contents($logfile, $log);
+      json_response(202, 'API not ready yet');
+      exit();
+    } elseif ($dataevent == 'MarketSell') {
+      $log = file_get_contents($logfile);
+      $log .= "API not ready yet (MarketSell)\n";
+      file_put_contents($logfile, $log);
+      json_response(202, 'API not ready yet');
+      exit();
     }
   } else {
     $log = file_get_contents($logfile);
