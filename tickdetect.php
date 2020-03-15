@@ -11,6 +11,10 @@ $con = mysqli_connect($servername,$username,$password,$database) or die("SQL con
 $data = json_decode(file_get_contents('https://elitebgs.app/api/ebgs/v4/ticks'), true);
 if (!$data) {
   echo "Couldnt get data from elitebgs tick api";
+  if ($apilogtickdetect) {
+    $current .= "Couldnt get data from elitebgs tick api\n";
+    file_put_contents($logfile, $current);
+  }
   exit();
 }
 
@@ -40,18 +44,23 @@ if ($lasttickresult = mysqli_query($con, $lasttickquery)){
 
     $inserttickdata = "INSERT INTO dailyticks (timestamp) VALUES ('$newtick')";
     if (!mysqli_query($con, $inserttickdata)) {
-      $logfile = 'tickdetect.log';
-      $current .= "SQL error, couldnt add tick to database.\n";
-      file_put_contents($logfile, $current);
+      if ($apilogtickdetect) {
+        $current .= "SQL error, couldnt add tick to database.\n";
+        file_put_contents($logfile, $current);
+      }
       exit();
     } else {
-      $current .= "Tick added to database, all done.\n";
-      file_put_contents($logfile, $current);
+      if ($apilogtickdetect) {
+        $current .= "Tick added to database, all done.\n";
+        file_put_contents($logfile, $current);
+      }
       include('tickprocessor.php');
     }
   } else {
-    $current .= "No new tick detected, exiting...\n";
-    file_put_contents($logfile, $current);
+    if ($apilogtickdetect) {
+      $current .= "No new tick detected, exiting...\n";
+      file_put_contents($logfile, $current);
+    }
     echo "No new tick detected, exiting...<br />\n";
     exit();
   }
