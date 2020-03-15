@@ -76,58 +76,60 @@ if (!$oldtick) {
 if (!$tickprocessedyet) {
   if(!$dryrun) {
     // REMOVE OLD DATA FROM ACTIVESNAPSHOT
-    $deleteactivesnapshotsquery = "DELETE FROM act_snapshot_systems WHERE timestamp < '$newtick'";
-    if ($deleteactivesnapshotsresult = mysqli_query($con, $deleteactivesnapshotsquery)){
-      $log .= "Deleted old system records in active snapshot where timestamp < ".$newtick."\n";  
-    }
     $deleteactivesnapshotsquery = "DELETE FROM act_snapshot_conflicts WHERE timestamp < '$newtick'";
     if ($deleteactivesnapshotsresult = mysqli_query($con, $deleteactivesnapshotsquery)){
-      $log .= "Deleted old conflict records in active snapshot where timestamp < ".$newtick."\n";  
+      $log .= "Deleted old conflict records from active snapshot where timestamp < ".$newtick."\n";  
     }
     $deleteactivesnapshotsquery = "DELETE FROM act_snapshot_factions WHERE timestamp < '$newtick'";
     if ($deleteactivesnapshotsresult = mysqli_query($con, $deleteactivesnapshotsquery)){
-      $log .= "Deleted old faction records in active snapshot where timestamp < ".$newtick."\n";  
+      $log .= "Deleted old faction records from active snapshot where timestamp < ".$newtick."\n";  
+    }
+    $deleteactivesnapshotsquery = "DELETE FROM act_snapshot_systems WHERE timestamp < '$newtick'";
+    if ($deleteactivesnapshotsresult = mysqli_query($con, $deleteactivesnapshotsquery)){
+      $log .= "Deleted old system records from active snapshot where timestamp < ".$newtick."\n";  
     }
     $deleterewardactivesnapshotsquery = "DELETE FROM act_snapshot_missionrewards";
     if ($deleterewardactivesnapshotsresult = mysqli_query($con, $deleterewardactivesnapshotsquery)){
-      $log .= "Deleted old missionrewards in active snapshot\n";
+      $log .= "Deleted old missionrewards from active snapshot\n";
+    }
+    $deleteexplorationdataactivesnapshotquery = "DELETE FROM act_snapshot_missionrewards";
+    if ($deleteexplorationdataactivesnapshotresult = mysqli_query($con, $deleteexplorationdataactivesnapshotquery)){
+      $log .= "Deleted old explorationdata from active snapshot\n";
     }
 
-    $resyncactivesnapshotquery = "UPDATE act_snapshot_systems SET tickid = '$newtickid' WHERE timestamp >= '$newtick' AND tickid = '$oldtickid'";
-    if ($resyncactivesnapshotresult = mysqli_query($con, $resyncactivesnapshotquery)){
-      $log .= mysqli_affected_rows($con)." active snapshot system records updated to match new tickid\n";
+    $deletedeliverydataactivesnapshotquery = "DELETE FROM act_snapshot_cargodeliveries";
+    if ($deletedeliverydataactivesnapshotresult = mysqli_query($con, $deletedeliverydataactivesnapshotquery)){
+      $log .= "Deleted old cargo delivery data from active snapshot\n";
+    }
+    $deletepurchasedataactivesnapshotquery = "DELETE FROM act_snapshot_cargopurchases";
+    if ($deletepurchasedataactivesnapshotresult = mysqli_query($con, $deletepurchasedataactivesnapshotquery)){
+      $log .= "Deleted old cargo purchase data from active snapshot\n";
     }
 
     $resyncactivesnapshotquery = "UPDATE act_snapshot_conflicts SET tickid = '$newtickid' WHERE timestamp >= '$newtick' AND tickid = '$oldtickid'";
     if ($resyncactivesnapshotresult = mysqli_query($con, $resyncactivesnapshotquery)){
       $log .= mysqli_affected_rows($con)." active snapshot conflict records updated to match new tickid\n";
     }
-
     $resyncactivesnapshotquery = "UPDATE act_snapshot_factions SET tickid = '$newtickid' WHERE timestamp >= '$newtick' AND tickid = '$oldtickid'";
     if ($resyncactivesnapshotresult = mysqli_query($con, $resyncactivesnapshotquery)){
       $log .= mysqli_affected_rows($con)." active snapshot factions records updated to match new tickid\n";
     }
-    $resyncactivesnapshotquery = "UPDATE act_snapshot_missionrewards SET tickid = '$newtickid' WHERE timestamp >= '$newtick' AND tickid = '$oldtickid'";
+    $resyncactivesnapshotquery = "UPDATE act_snapshot_systems SET tickid = '$newtickid' WHERE timestamp >= '$newtick' AND tickid = '$oldtickid'";
     if ($resyncactivesnapshotresult = mysqli_query($con, $resyncactivesnapshotquery)){
-      $log .= mysqli_affected_rows($con)." active snapshot missionreward records updated to match new tickid\n";
+      $log .= mysqli_affected_rows($con)." active snapshot system records updated to match new tickid\n";
     }
 
-
+    $deleteconflictdataquery = "DELETE FROM data_conflicts WHERE timestamp < '$oldtick'";
+    if ($deleteconflictdataresult = mysqli_query($con, $deleteconflictdataquery)){
+      $log .= "Deleted all records from data_conflicts where timestamp < ".$oldtick."\n";
+    }
     $deletefactiondataquery = "DELETE FROM data_factions WHERE timestamp < '$oldtick'";
     if ($deletefactiondataresult = mysqli_query($con, $deletefactiondataquery)){
-      $log .= "Deleted all records in data_factions where timestamp < ".$oldtick."\n";
+      $log .= "Deleted all records from data_factions where timestamp < ".$oldtick."\n";
     }
     $deletesystemdataquery = "DELETE FROM data_systems WHERE timestamp < '$oldtick'";
     if ($deletesystemdataresult = mysqli_query($con, $deletesystemdataquery)){
-      $log .= "Deleted all records in data_systems where timestamp < ".$oldtick."\n";
-    }
-    $deleteconflictdataquery = "DELETE FROM data_conflicts WHERE timestamp < '$oldtick'";
-    if ($deleteconflictdataresult = mysqli_query($con, $deleteconflictdataquery)){
-      $log .= "Deleted all records in data_conflicts where timestamp < ".$oldtick."\n";
-    }
-    $deleteinfluencedataquery = "DELETE FROM data_missionrewards WHERE timestamp < '$oldtick'";
-    if ($deleteinfluencedataresult = mysqli_query($con, $deleteinfluencedataquery)){
-      $log .= "Deleted all records in data_conflicts where timestamp < ".$oldtick."\n";
+      $log .= "Deleted all records from data_systems where timestamp < ".$oldtick."\n";
     }
   }
 
@@ -223,7 +225,9 @@ if (!$tickprocessedyet) {
   }
   // ALL SYSTEM DATA GATHERED, stored in $tempsystemslist
   if($dryrun) {
+    echo "<pre>";
     print_r($tempsystemslist);
+    echo "</pre>";
   }
   $log .= $systemrecordsunique." records left after processing, ".($systemrecords - $systemrecordsunique)." duplicate records ignored\n";
   $log .= "\n\n";
@@ -461,7 +465,9 @@ if (!$tickprocessedyet) {
   // ALL FACTION DATA GATHERED, stored in $tempfactionslist
 
   if($dryrun) {
+    echo "<pre>";
     print_r($tempfactionslist);
+    echo "</pre>";
   }
   $log .= $factionrecordsunique." records left after processing, ".($factionrecords - $factionrecordsunique)." duplicate records ignored\n";
   $log .= "\n\n";
@@ -573,7 +579,9 @@ if (!$tickprocessedyet) {
   // ALL CONFLICT DATA GATHERED, stored in $tempconflictslist
 
   if($dryrun) {
+    echo "<pre>";
     print_r($tempconflictslist);
+    echo "</pre>";
   }
   $log .= $conflictrecordsunique." records left after processing, ".($conflictrecords - $conflictrecordsunique)." duplicate records ignored\n";
   $log .= "\n\n";
@@ -659,9 +667,230 @@ if (!$tickprocessedyet) {
   // ALL INFLUENCE DATA GATHERED, stored in $tempinfluencelist
 
   if($dryrun) {
+    echo "<pre>";
     print_r($tempinfluencelist);
+    echo "</pre>";
   }
   $log .= "\n\n";
+
+
+
+
+
+
+
+  // START EXPLORATION DATA GATHERING, final results are stored in array: $tempexplorationlist
+  $tempexplorationlist = array();
+  $stationsarray = array();
+  $stationlistquery = "SELECT StationName FROM data_explorationdata WHERE timestamp > '$oldtick' AND timestamp < '$newtick'";
+  if($stationlistresult = mysqli_query($con, $stationlistquery)){
+    while($row = mysqli_fetch_array($stationlistresult, MYSQLI_ASSOC)) {
+      $stationsarray[] = $row['StationName'];
+    }
+  }
+  $stationsarray = array_unique($stationsarray);
+
+
+  $explorationtimestamp = '';
+  foreach($stationsarray as $stationname) {
+    $explorationbase = 0;
+    $explorationbonus = 0;
+    $explorationtotal = 0;
+    $explorationsystemcount = 0;
+    $explorationbodycount = 0;
+    $explorationlistquery = "SELECT timestamp, StarSystem, SystemAddress, base, bonus, total, systemcount, bodycount FROM data_explorationdata WHERE timestamp > '$oldtick' AND timestamp < '$newtick' AND StationName = '$stationname'";
+    if($explorationlistresult = mysqli_query($con, $explorationlistquery)){
+      while($row3 = mysqli_fetch_array($explorationlistresult, MYSQLI_ASSOC)) {
+        $explorationsystem = addslashes($row3['StarSystem']);
+        $explorationaddress = $row3['SystemAddress'];
+        $explorationbase = $explorationbase + $row3['base'];
+        $explorationbonus = $explorationbonus + $row3['bonus'];
+        $explorationtotal = $explorationtotal + $row3['total'];
+        $explorationsystemcount = $explorationsystemcount + $row3['systemcount'];
+        $explorationbodycount = $explorationbodycount + $row3['bodycount'];
+        $explorationlastupdate = $row3['timestamp'];
+      }
+      $tempexplorationlist[] = array(
+      "starsystem" => $explorationsystem,
+      "systemaddress" => $explorationaddress,
+      "stationname" => $stationname,
+      "base" => $explorationbase,
+      "bonus" => $explorationbonus,
+      "total" => $explorationtotal,
+      "systems" => $explorationsystemcount,
+      "bodies" => $explorationbodycount,
+      "timestamp" => $explorationlastupdate
+      );
+    } else {
+      $log .= "Couldn't consolidate exploration data: ".$stationname." (Systems: ".$explorationsystemcount." / Bodies: ".$explorationbodycount.")\n";
+    }
+  }
+  // ALL EXPLORATION DATA GATHERED, stored in $tempexplorationlist
+
+  if($dryrun) {
+    echo "<pre>";
+    print_r($tempexplorationlist);
+    echo "</pre>";
+  }
+  $log .= "\n\n";
+
+
+
+
+
+
+
+
+
+
+  // START CARGO DELIVERY DATA GATHERING, final results are stored in array: $tempdeliverylist
+  $tempdeliverylist = array();
+  $stationsarray = array();
+  $commoditiesarray = array();
+  $stationlistquery = "SELECT MarketID FROM data_cargodeliveries WHERE timestamp > '$oldtick' AND timestamp < '$newtick'";
+  if($stationlistresult = mysqli_query($con, $stationlistquery)){
+    while($row = mysqli_fetch_array($stationlistresult, MYSQLI_ASSOC)) {
+      $stationsarray[] = $row['MarketID'];
+    }
+  }
+  $stationsarray = array_unique($stationsarray);
+
+
+  $deliverytimestamp = '';
+  foreach($stationsarray as $MarketID) {
+    
+    $commoditylistquery = "SELECT commodity FROM data_cargodeliveries WHERE timestamp > '$oldtick' AND timestamp < '$newtick' AND MarketID = '$MarketID'";
+    if($commoditylistresult = mysqli_query($con, $commoditylistquery)){
+      while($row3 = mysqli_fetch_array($commoditylistresult, MYSQLI_ASSOC)) {
+        $commoditiesarray[] = $row3['commodity'];
+      }
+    }
+    $commoditiesarray = array_unique($commoditiesarray);
+    
+    foreach($commoditiesarray as $commodity) {
+      $amount = 0;
+      $value = 0;
+      $profit = 0;
+
+      $deliverylistquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, MarketID, amount, value, profit FROM data_cargodeliveries WHERE timestamp > '$oldtick' AND timestamp < '$newtick' AND MarketID = '$MarketID' AND commodity = '$commodity'";
+      if($deliverylistresult = mysqli_query($con, $deliverylistquery)){
+        while($row4 = mysqli_fetch_array($deliverylistresult, MYSQLI_ASSOC)) {
+          $StarSystem = addslashes($row4['StarSystem']);
+          $StationName = addslashes($row4['StationName']);
+          $SystemAddress = $row4['SystemAddress'];
+          $amount = $amount + $row4['amount'];
+          $value = $value + $row4['value'];
+          $profit = $profit + $row4['profit'];
+          $lastupdate = $row4['timestamp'];
+        }
+        $tempdeliverylist[] = array(
+          "StarSystem" => $StarSystem,
+          "SystemAddress" => $SystemAddress,
+          "StationName" => $StationName,
+          "MarketID" => $MarketID,
+          "commodity" => $commodity,
+          "amount" => $amount,
+          "value" => $value,
+          "profit" => $profit,
+          "timestamp" => $lastupdate
+        );
+      } else {
+        $log .= "Couldn't consolidate cargo delivery data: ".$commodity." (".$MarketID.")\n";
+      }
+    }
+  }
+  // ALL CARGO DELIVERY DATA GATHERED, stored in $tempdeliverylist
+
+  if($dryrun) {
+    echo "<pre>";
+    print_r($tempdeliverylist);
+    echo "</pre>";
+  }
+  $log .= "\n\n";
+
+
+
+
+
+
+
+
+
+
+  // START CARGO PURCHASE DATA GATHERING, final results are stored in array: $temppurchaselist
+  $temppurchaselist = array();
+  $stationsarray = array();
+  $commoditiesarray = array();
+  $stationlistquery = "SELECT MarketID FROM data_cargopurchases WHERE timestamp > '$oldtick' AND timestamp < '$newtick'";
+  if($stationlistresult = mysqli_query($con, $stationlistquery)){
+    while($row = mysqli_fetch_array($stationlistresult, MYSQLI_ASSOC)) {
+      $stationsarray[] = $row['MarketID'];
+    }
+  }
+  $stationsarray = array_unique($stationsarray);
+
+
+  $deliverytimestamp = '';
+  foreach($stationsarray as $MarketID) {
+    
+    $commoditylistquery = "SELECT commodity FROM data_cargopurchases WHERE timestamp > '$oldtick' AND timestamp < '$newtick' AND MarketID = '$MarketID'";
+    if($commoditylistresult = mysqli_query($con, $commoditylistquery)){
+      while($row3 = mysqli_fetch_array($commoditylistresult, MYSQLI_ASSOC)) {
+        $commoditiesarray[] = $row3['commodity'];
+      }
+    }
+    $commoditiesarray = array_unique($commoditiesarray);
+    
+    foreach($commoditiesarray as $commodity) {
+      $amount = 0;
+      $value = 0;
+      $totalcost = 0;
+
+      $purchaselistquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, MarketID, amount, value, total FROM data_cargopurchases WHERE timestamp > '$oldtick' AND timestamp < '$newtick' AND MarketID = '$MarketID' AND commodity = '$commodity'";
+      if($purchaselistresult = mysqli_query($con, $purchaselistquery)){
+        while($row4 = mysqli_fetch_array($purchaselistresult, MYSQLI_ASSOC)) {
+          $StarSystem = addslashes($row4['StarSystem']);
+          $StationName = addslashes($row4['StationName']);
+          $SystemAddress = $row4['SystemAddress'];
+          $amount = $amount + $row4['amount'];
+          $value = $value + $row4['value'];
+          $totalcost = $totalcost + $row4['total'];
+          $lastupdate = $row4['timestamp'];
+        }
+        $temppurchaselist[] = array(
+          "StarSystem" => $StarSystem,
+          "SystemAddress" => $SystemAddress,
+          "StationName" => $StationName,
+          "MarketID" => $MarketID,
+          "commodity" => $commodity,
+          "amount" => $amount,
+          "value" => $value,
+          "totalcost" => $totalcost,
+          "timestamp" => $lastupdate
+        );
+      } else {
+        $log .= "Couldn't consolidate cargo purchase data: ".$commodity." (".$MarketID.")\n";
+      }
+    }
+  }
+  // ALL CARGO PURCHASE DATA GATHERED, stored in $temppurchaselist
+
+  if($dryrun) {
+    echo "<pre>";
+    print_r($temppurchaselist);
+    echo "</pre>";
+  }
+  $log .= "\n\n";
+
+
+
+
+
+
+
+
+
+
 
   if(!$dryrun) {
     foreach ($tempsystemslist as $element) {
@@ -688,8 +917,8 @@ if (!$tickprocessedyet) {
 
     foreach ($tempfactionslist as $element2) {
       $datetime = $element2['timestamp'];
-      $systemname = addslashes($element2['systemname']);
-      $systemaddress = $element2['systemaddress'];
+      $StarSystem = addslashes($element2['StarSystem']);
+      $SystemAddress = $element2['SystemAddress'];
       $Name = addslashes($element2['Name']);
       $Government = $element2['Government'];
       $Influence = $element2['Influence'];
@@ -1005,12 +1234,12 @@ if (!$tickprocessedyet) {
       }
 
 
-      $insertfactionsnapshot = "INSERT INTO snapshot_factions (tickid, timestamp, Name, StarSystem, SystemAddress, Government, Influence, Allegiance, Happiness, stateBlight, stateBoom, stateBust, stateCivilLiberty, stateCivilUnrest, stateCivilWar, stateColdWar, stateColonisation, stateDamaged, stateDrought, stateElection, stateExpansion, stateFamine, stateHistoricEvent, stateInfrastructureFailure, stateInvestment, stateLockdown, stateNaturalDisaster, stateOutbreak, statePirateAttack, statePublicHoliday, stateRetreat, stateRevolution, stateTechnologicalLeap, stateTerroristAttack, stateTradeWar,stateUnderRepairs, stateWar, recBlight, recBlightTrend, recBoom, recBoomTrend, recBust, recBustTrend, recCivilLiberty, recCivilLibertyTrend, recCivilUnrest, recCivilUnrestTrend, recCivilWar, recCivilWarTrend, recColdWar, recColdWarTrend, recColonisation, recColonisationTrend, recDamaged, recDamagedTrend, recDrought, recDroughtTrend, recElection, recElectionTrend, recExpansion, recExpansionTrend, recFamine, recFamineTrend, recHistoricEvent, recHistoricEventTrend, recInfrastructureFailure, recInfrastructureFailureTrend, recInvestment, recInvestmentTrend, recLockdown, recLockdownTrend, recNaturalDisaster, recNaturalDisasterTrend, recOutbreak, recOutbreakTrend, recPirateAttack, recPirateAttackTrend, recPublicHoliday, recPublicHolidayTrend, recRetreat, recRetreatTrend, recRevolution, recRevolutionTrend, recTechnologicalLeap, recTechnologicalLeapTrend, recTerroristAttack, recTerroristAttackTrend, recTradeWar, recTradeWarTrend, recUnderRepairs, recUnderRepairsTrend, recWar, recWarTrend, pendingBlight, pendingBlightTrend, pendingBoom, pendingBoomTrend, pendingBust, pendingBustTrend, pendingCivilLiberty, pendingCivilLibertyTrend, pendingCivilUnrest, pendingCivilUnrestTrend, pendingCivilWar, pendingCivilWarTrend, pendingColdWar, pendingColdWarTrend, pendingColonisation, pendingColonisationTrend, pendingDamaged, pendingDamagedTrend, pendingDrought, pendingDroughtTrend, pendingElection, pendingElectionTrend, pendingExpansion, pendingExpansionTrend, pendingFamine, pendingFamineTrend, pendingHistoricEvent, pendingHistoricEventTrend, pendingInfrastructureFailure, pendingInfrastructureFailureTrend, pendingInvestment, pendingInvestmentTrend, pendingLockdown, pendingLockdownTrend, pendingNaturalDisaster, pendingNaturalDisasterTrend, pendingOutbreak, pendingOutbreakTrend, pendingPirateAttack, pendingPirateAttackTrend, pendingPublicHoliday, pendingPublicHolidayTrend, pendingRetreat, pendingRetreatTrend, pendingRevolution, pendingRevolutionTrend, pendingTechnologicalLeap, pendingTechnologicalLeapTrend, pendingTerroristAttack, pendingTerroristAttackTrend, pendingTradeWar, pendingTradeWarTrend, pendingUnderRepairs, pendingUnderRepairsTrend, pendingWar, pendingWarTrend) VALUES ('$oldtickid', '$datetime', '$Name', '$systemname', '$systemaddress', '$Government', '$Influence', '$Allegiance', '$Happiness', '$stateBlight', '$stateBoom', '$stateBust', '$stateCivilLiberty', '$stateCivilUnrest', '$stateCivilWar', '$stateColdWar', '$stateColonisation', '$stateDamaged', '$stateDrought', '$stateElection', '$stateExpansion', '$stateFamine', '$stateHistoricEvent', '$stateInfrastructureFailure', '$stateInvestment', '$stateLockdown', '$stateNaturalDisaster', '$stateOutbreak', '$statePirateAttack', '$statePublicHoliday', '$stateRetreat', '$stateRevolution', '$stateTechnologicalLeap', '$stateTerroristAttack', '$stateTradeWar', '$stateUnderRepairs', '$stateWar', '$recBlight', $recBlightTrend, '$recBoom', $recBoomTrend, '$recBust', $recBustTrend, '$recCivilLiberty', $recCivilLibertyTrend, '$recCivilUnrest', $recCivilUnrestTrend, '$recCivilWar', $recCivilWarTrend, '$recColdWar', $recColdWarTrend, '$recColonisation', $recColonisationTrend, '$recDamaged', $recDamagedTrend, '$recDrought', $recDroughtTrend, '$recElection', $recElectionTrend, '$recExpansion', $recExpansionTrend, '$recFamine', $recFamineTrend, '$recHistoricEvent', $recHistoricEventTrend, '$recInfrastructureFailure', $recInfrastructureFailureTrend, '$recInvestment', $recInvestmentTrend, '$recLockdown', $recLockdownTrend, '$recNaturalDisaster', $recNaturalDisasterTrend, '$recOutbreak', $recOutbreakTrend, '$recPirateAttack', $recPirateAttackTrend, '$recPublicHoliday', $recPublicHolidayTrend, '$recRetreat', $recRetreatTrend, '$recRevolution', $recRevolutionTrend, '$recTechnologicalLeap', $recTechnologicalLeapTrend, '$recTerroristAttack', $recTerroristAttackTrend, '$recTradeWar', $recTradeWarTrend, '$recUnderRepairs', $recUnderRepairsTrend, '$recWar', $recWarTrend, '$pendingBlight', $pendingBlightTrend, '$pendingBoom', $pendingBoomTrend, '$pendingBust', $pendingBustTrend, '$pendingCivilLiberty', $pendingCivilLibertyTrend, '$pendingCivilUnrest', $pendingCivilUnrestTrend, '$pendingCivilWar', $pendingCivilWarTrend, '$pendingColdWar', $pendingColdWarTrend, '$pendingColonisation', $pendingColonisationTrend, '$pendingDamaged', $pendingDamagedTrend, '$pendingDrought', $pendingDroughtTrend, '$pendingElection', $pendingElectionTrend, '$pendingExpansion', $pendingExpansionTrend, '$pendingFamine', $pendingFamineTrend, '$pendingHistoricEvent', $pendingHistoricEventTrend, '$pendingInfrastructureFailure', $pendingInfrastructureFailureTrend, '$pendingInvestment', $pendingInvestmentTrend, '$pendingLockdown', $pendingLockdownTrend, '$pendingNaturalDisaster', $pendingNaturalDisasterTrend, '$pendingOutbreak', $pendingOutbreakTrend, '$pendingPirateAttack', $pendingPirateAttackTrend, '$pendingPublicHoliday', $pendingPublicHolidayTrend, '$pendingRetreat', $pendingRetreatTrend, '$pendingRevolution', $pendingRevolutionTrend, '$pendingTechnologicalLeap', $pendingTechnologicalLeapTrend, '$pendingTerroristAttack', $pendingTerroristAttackTrend, '$pendingTradeWar', $pendingTradeWarTrend, '$pendingUnderRepairs', $pendingUnderRepairsTrend, '$pendingWar', $pendingWarTrend)";
+      $insertfactionsnapshot = "INSERT INTO snapshot_factions (tickid, timestamp, Name, StarSystem, SystemAddress, Government, Influence, Allegiance, Happiness, stateBlight, stateBoom, stateBust, stateCivilLiberty, stateCivilUnrest, stateCivilWar, stateColdWar, stateColonisation, stateDamaged, stateDrought, stateElection, stateExpansion, stateFamine, stateHistoricEvent, stateInfrastructureFailure, stateInvestment, stateLockdown, stateNaturalDisaster, stateOutbreak, statePirateAttack, statePublicHoliday, stateRetreat, stateRevolution, stateTechnologicalLeap, stateTerroristAttack, stateTradeWar,stateUnderRepairs, stateWar, recBlight, recBlightTrend, recBoom, recBoomTrend, recBust, recBustTrend, recCivilLiberty, recCivilLibertyTrend, recCivilUnrest, recCivilUnrestTrend, recCivilWar, recCivilWarTrend, recColdWar, recColdWarTrend, recColonisation, recColonisationTrend, recDamaged, recDamagedTrend, recDrought, recDroughtTrend, recElection, recElectionTrend, recExpansion, recExpansionTrend, recFamine, recFamineTrend, recHistoricEvent, recHistoricEventTrend, recInfrastructureFailure, recInfrastructureFailureTrend, recInvestment, recInvestmentTrend, recLockdown, recLockdownTrend, recNaturalDisaster, recNaturalDisasterTrend, recOutbreak, recOutbreakTrend, recPirateAttack, recPirateAttackTrend, recPublicHoliday, recPublicHolidayTrend, recRetreat, recRetreatTrend, recRevolution, recRevolutionTrend, recTechnologicalLeap, recTechnologicalLeapTrend, recTerroristAttack, recTerroristAttackTrend, recTradeWar, recTradeWarTrend, recUnderRepairs, recUnderRepairsTrend, recWar, recWarTrend, pendingBlight, pendingBlightTrend, pendingBoom, pendingBoomTrend, pendingBust, pendingBustTrend, pendingCivilLiberty, pendingCivilLibertyTrend, pendingCivilUnrest, pendingCivilUnrestTrend, pendingCivilWar, pendingCivilWarTrend, pendingColdWar, pendingColdWarTrend, pendingColonisation, pendingColonisationTrend, pendingDamaged, pendingDamagedTrend, pendingDrought, pendingDroughtTrend, pendingElection, pendingElectionTrend, pendingExpansion, pendingExpansionTrend, pendingFamine, pendingFamineTrend, pendingHistoricEvent, pendingHistoricEventTrend, pendingInfrastructureFailure, pendingInfrastructureFailureTrend, pendingInvestment, pendingInvestmentTrend, pendingLockdown, pendingLockdownTrend, pendingNaturalDisaster, pendingNaturalDisasterTrend, pendingOutbreak, pendingOutbreakTrend, pendingPirateAttack, pendingPirateAttackTrend, pendingPublicHoliday, pendingPublicHolidayTrend, pendingRetreat, pendingRetreatTrend, pendingRevolution, pendingRevolutionTrend, pendingTechnologicalLeap, pendingTechnologicalLeapTrend, pendingTerroristAttack, pendingTerroristAttackTrend, pendingTradeWar, pendingTradeWarTrend, pendingUnderRepairs, pendingUnderRepairsTrend, pendingWar, pendingWarTrend) VALUES ('$oldtickid', '$datetime', '$Name', '$StarSystem', '$SystemAddress', '$Government', '$Influence', '$Allegiance', '$Happiness', '$stateBlight', '$stateBoom', '$stateBust', '$stateCivilLiberty', '$stateCivilUnrest', '$stateCivilWar', '$stateColdWar', '$stateColonisation', '$stateDamaged', '$stateDrought', '$stateElection', '$stateExpansion', '$stateFamine', '$stateHistoricEvent', '$stateInfrastructureFailure', '$stateInvestment', '$stateLockdown', '$stateNaturalDisaster', '$stateOutbreak', '$statePirateAttack', '$statePublicHoliday', '$stateRetreat', '$stateRevolution', '$stateTechnologicalLeap', '$stateTerroristAttack', '$stateTradeWar', '$stateUnderRepairs', '$stateWar', '$recBlight', $recBlightTrend, '$recBoom', $recBoomTrend, '$recBust', $recBustTrend, '$recCivilLiberty', $recCivilLibertyTrend, '$recCivilUnrest', $recCivilUnrestTrend, '$recCivilWar', $recCivilWarTrend, '$recColdWar', $recColdWarTrend, '$recColonisation', $recColonisationTrend, '$recDamaged', $recDamagedTrend, '$recDrought', $recDroughtTrend, '$recElection', $recElectionTrend, '$recExpansion', $recExpansionTrend, '$recFamine', $recFamineTrend, '$recHistoricEvent', $recHistoricEventTrend, '$recInfrastructureFailure', $recInfrastructureFailureTrend, '$recInvestment', $recInvestmentTrend, '$recLockdown', $recLockdownTrend, '$recNaturalDisaster', $recNaturalDisasterTrend, '$recOutbreak', $recOutbreakTrend, '$recPirateAttack', $recPirateAttackTrend, '$recPublicHoliday', $recPublicHolidayTrend, '$recRetreat', $recRetreatTrend, '$recRevolution', $recRevolutionTrend, '$recTechnologicalLeap', $recTechnologicalLeapTrend, '$recTerroristAttack', $recTerroristAttackTrend, '$recTradeWar', $recTradeWarTrend, '$recUnderRepairs', $recUnderRepairsTrend, '$recWar', $recWarTrend, '$pendingBlight', $pendingBlightTrend, '$pendingBoom', $pendingBoomTrend, '$pendingBust', $pendingBustTrend, '$pendingCivilLiberty', $pendingCivilLibertyTrend, '$pendingCivilUnrest', $pendingCivilUnrestTrend, '$pendingCivilWar', $pendingCivilWarTrend, '$pendingColdWar', $pendingColdWarTrend, '$pendingColonisation', $pendingColonisationTrend, '$pendingDamaged', $pendingDamagedTrend, '$pendingDrought', $pendingDroughtTrend, '$pendingElection', $pendingElectionTrend, '$pendingExpansion', $pendingExpansionTrend, '$pendingFamine', $pendingFamineTrend, '$pendingHistoricEvent', $pendingHistoricEventTrend, '$pendingInfrastructureFailure', $pendingInfrastructureFailureTrend, '$pendingInvestment', $pendingInvestmentTrend, '$pendingLockdown', $pendingLockdownTrend, '$pendingNaturalDisaster', $pendingNaturalDisasterTrend, '$pendingOutbreak', $pendingOutbreakTrend, '$pendingPirateAttack', $pendingPirateAttackTrend, '$pendingPublicHoliday', $pendingPublicHolidayTrend, '$pendingRetreat', $pendingRetreatTrend, '$pendingRevolution', $pendingRevolutionTrend, '$pendingTechnologicalLeap', $pendingTechnologicalLeapTrend, '$pendingTerroristAttack', $pendingTerroristAttackTrend, '$pendingTradeWar', $pendingTradeWarTrend, '$pendingUnderRepairs', $pendingUnderRepairsTrend, '$pendingWar', $pendingWarTrend)";
       if (!mysqli_query($con, $insertfactionsnapshot)) {
         $log .= "\n\n\n".$insertfactionsnapshot."\n\n\n";
-        $log .= "SQL error, couldnt add faction ".$Name." (".$systemname." / ".$systemaddress.") snapshot to database.\n".mysqli_error($con);
+        $log .= "SQL error, couldnt add faction ".$Name." (".$StarSystem." / ".$SystemAddress.") snapshot to database.\n".mysqli_error($con);
       } else {
-        $log .= "Faction ".$Name." (".$systemname." / ".$systemaddress.") snapshot added to database.\n";
+        $log .= "Faction ".$Name." (".$StarSystem." / ".$SystemAddress.") snapshot added to database.\n";
       }
     }
     $log .= "\n";
@@ -1056,8 +1285,73 @@ if (!$tickprocessedyet) {
       }
     }
     $log .= "\n";
+
+    foreach ($tempexplorationlist as $element5) {
+      $explorationsystem = addslashes($element5['starsystem']);
+      $explorationaddress = $element5['systemaddress'];
+      $explorationstationname = addslashes($element5['stationname']);
+      $explorationbase = $element5['base'];
+      $explorationbonus = $element5['bonus'];
+      $explorationtotal = $element5['total'];
+      $explorationsystemcount = $element5['systems'];
+      $explorationbodycount = $element5['bodies'];
+      $influencetimestamp = $element5['timestamp'];
+
+
+      $insertexplorationsnapshot = "INSERT INTO snapshot_explorationdata (tickid, timestamp, StarSystem, SystemAddress, StationName, base, bonus, total, systemcount, bodycount) VALUES ('$oldtickid', '$influencetimestamp', '$explorationsystem', '$explorationaddress', '$explorationstationname', '$explorationbase', '$explorationbonus', '$explorationtotal', '$explorationsystemcount', '$explorationbodycount')";
+
+      if (!mysqli_query($con, $insertexplorationsnapshot)) {
+        $log .= "SQL error, couldnt add exploration data ".$explorationstationname." ".$influencefaction." (Systems: ".$explorationsystemcount." / Bodies: ".$explorationbodycount.") snapshot to database.\n".mysqli_error($con);
+      } else {
+        $log .= "Exploration data ".$explorationstationname." ".$influencefaction." (Systems: ".$explorationsystemcount." / Bodies: ".$explorationbodycount.") snapshot added to database.\n";
+      }
+    }
+    $log .= "\n";
+
+    foreach ($tempdeliverylist as $element6) {
+      $deliverysystem = addslashes($element6['StarSystem']);
+      $deliveryaddress = $element6['SystemAddress'];
+      $deliverystationname = addslashes($element6['StationName']);
+      $deliverymarketid = $element6['MarketID'];
+      $deliverycommodity = $element6['commodity'];
+      $deliveryamount = $element6['amount'];
+      $deliveryvalue = $element6['value'];
+      $deliveryprofit = $element6['profit'];
+      $deliverytimestamp = $element6['timestamp'];
+
+
+
+      $insertdeliverysnapshot = "INSERT INTO snapshot_cargodeliveries (tickid, timestamp, StarSystem, SystemAddress, StationName, MarketID, commodity, amount, value, profit) VALUES ('$oldtickid', '$deliverytimestamp', '$deliverysystem', '$deliveryaddress', '$deliverystationname', '$deliverymarketid', '$deliverycommodity', '$deliveryamount', '$deliveryvalue', '$deliveryprofit')";
+      if (!mysqli_query($con, $insertdeliverysnapshot)) {
+        $log .= "SQL error, couldnt add cargo delivery data ".$deliverycommodity." at ".$deliverystationname." (System: ".$deliverysystem.") snapshot to database.\n".mysqli_error($con);
+      } else {
+        $log .= "Cargo delivery data ".$deliverycommodity." at ".$deliverystationname." (System: ".$deliverysystem.") snapshot added to database.\n";
+      }
+    }
+    $log .= "\n";
+
+    foreach ($temppurchaselist as $element7) {
+      $purchasesystem = addslashes($element7['StarSystem']);
+      $purchaseaddress = $element7['SystemAddress'];
+      $purchasestationname = addslashes($element7['StationName']);
+      $purchasemarketid = $element7['MarketID'];
+      $purchasecommodity = $element7['commodity'];
+      $purchaseamount = $element7['amount'];
+      $purchasevalue = $element7['value'];
+      $purchasetotal = $element7['totalcost'];
+      $purchasetimestamp = $element7['timestamp'];
+
+      $insertpurchasesnapshot = "INSERT INTO snapshot_cargopurchases (tickid, timestamp, StarSystem, SystemAddress, StationName, MarketID, commodity, amount, value, total) VALUES ('$oldtickid', '$purchasetimestamp', '$purchasesystem', '$purchaseaddress', '$purchasestationname', '$purchasemarketid', '$purchasecommodity', '$purchaseamount', '$purchasevalue', '$purchasetotal')";
+      if (!mysqli_query($con, $insertpurchasesnapshot)) {
+        $log .= "SQL error, couldnt add cargo purchase data ".$purchasecommodity." at ".$purchasestationname." (System: ".$purchasesystem.") snapshot to database.\n".mysqli_error($con);
+      } else {
+        $log .= "Cargo purchase data ".$purchasecommodity." at ".$purchasestationname." (System: ".$purchasesystem.") snapshot added to database.\n";
+      }
+    }
+    $log .= "\n";
   }
 }
-
-file_put_contents($logfile, $log);
+if ($apilogprocessor) {
+  file_put_contents($logfile, $log);
+}
 ?>
