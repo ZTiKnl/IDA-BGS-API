@@ -2,18 +2,21 @@
 // include config variables
 include('config.inc.php');
 
-$logfile = $loglocation.$logapiout;
-
-$log = "API triggered\n";
-file_put_contents($logfile, $log);
+$logfile = $loglocation.$logapioutput;
+if ($apilogoutput) {
+  $log = "API triggered\n";
+  file_put_contents($logfile, $log);
+}
 
 // connect to db
 include($securedbcreds);
 $con = mysqli_connect($servername,$username,$password,$database);
 if (mysqli_connect_errno()) {
-  $log = file_get_contents($logfile);
-  $log .= "Couldn't connect to database\n";
-  file_put_contents($logfile, $log);
+  if ($apilogoutput) {
+    $log = file_get_contents($logfile);
+    $log .= "Couldn't connect to database\n";
+    file_put_contents($logfile, $log);
+  }
   json_response(401, 'sql connection error');
   exit();
 }
@@ -21,25 +24,31 @@ if (mysqli_connect_errno()) {
 // collect GET vars, apikey, requested data
 $data = $_GET;
 if (!$data) {
-  $log = file_get_contents($logfile);
-  $log .= "400: empty request\n";
-  file_put_contents($logfile, $log);
+  if ($apilogoutput) {
+    $log = file_get_contents($logfile);
+    $log .= "400: empty request\n";
+    file_put_contents($logfile, $log);
+  }
   json_response(400, 'empty request');
   exit();
 } else {
   if (!$data['apikey']) {
-    $log = file_get_contents($logfile);
-    $log .= "401: No apikey\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "401: No apikey\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(401, 'need an API key to continue');
     exit();
   } else {
     $apikey = filter_var($data['apikey'], FILTER_SANITIZE_SPECIAL_CHARS);
   }
   if (!$data['request']) {
-    $log = file_get_contents($logfile);
-    $log .= "402: no request type given\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "402: no request type given\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(402, 'need to know what data to provide');
     exit();
   } else {
@@ -54,9 +63,11 @@ if (!$data) {
 $apiquery = "SELECT id FROM apikeys WHERE apikey = '$apikey'";
 if($apiresult = mysqli_query($con, $apiquery)){
   if(mysqli_num_rows($apiresult) > 0){
-    $log = file_get_contents($logfile);
-    $log .= "APIkey matches\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "APIkey matches\n";
+      file_put_contents($logfile, $log);
+    }
     
     if(isset($checkid)) {
       $api2query = "SELECT id FROM apikeys WHERE userid = '$checkid'";
@@ -71,16 +82,20 @@ if($apiresult = mysqli_query($con, $apiquery)){
     
     
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "403: Unknown APIkey\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "403: Unknown APIkey\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(403, 'no matching APIkey');
     exit();
   }
 } else {
-  $log = file_get_contents($logfile);
-  $log .= "404: SQL query error: ".mysqli_error($con)."\n";
-  file_put_contents($logfile, $log);
+  if ($apilogoutput) {
+    $log = file_get_contents($logfile);
+    $log .= "404: SQL query error: ".mysqli_error($con)."\n";
+    file_put_contents($logfile, $log);
+  }
   json_response(404, 'sql query error', mysqli_error($con));
   exit();
 }
@@ -133,14 +148,18 @@ if ($requesttype == 'tickdata') {
   
   if ($tickdata) {
     echo json_encode($tickdata);
-    $log = file_get_contents($logfile);
-    $log .= "Success, all done\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "Success, all done\n";
+      file_put_contents($logfile, $log);
+    }
     exit();
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "405: No results\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "405: No results\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(405, 'No results found');
     exit();
   }
@@ -174,21 +193,27 @@ if ($requesttype == 'systemlist') {
         $systemlistdata[] = array("systemname" => $systemname, "systemaddress" => $systemaddress, "influence" => $systeminfluence, "updatetime" => $updatetime, "uptodate" => $uptodate);
       }
       echo json_encode($systemlistdata);
-      $log = file_get_contents($logfile);
-      $log .= "Success, all done\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
       exit();
     } else {
-      $log = file_get_contents($logfile);
-      $log .= "407: No results\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "407: No results\n";
+        file_put_contents($logfile, $log);
+      }
       json_response(407, 'No results found');
       exit();
     }
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "406: SQL query error: ".mysqli_error($con)."\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "406: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(406, 'sql query error', mysqli_error($con));
     exit();
   }
@@ -970,28 +995,36 @@ if ($requesttype == 'report') {
 
       if ($finalres) {
         echo json_encode($finalres);
-        $log = file_get_contents($logfile);
-        $log .= "Success, all done\n";
-        file_put_contents($logfile, $log);
+        if ($apilogoutput) {
+          $log = file_get_contents($logfile);
+          $log .= "Success, all done\n";
+          file_put_contents($logfile, $log);
+        }
         exit();
       } else {
-        $log = file_get_contents($logfile);
-        $log .= "413: No data\n";
-        file_put_contents($logfile, $log);
+        if ($apilogoutput) {
+          $log = file_get_contents($logfile);
+          $log .= "413: No data\n";
+          file_put_contents($logfile, $log);
+        }
         json_response(413, 'No data');
         exit();
       }
     } else {
-      $log = file_get_contents($logfile);
-      $log .= "412: No data: ".mysqli_error($con)."\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "412: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
       json_response(412, 'No data', mysqli_error($con));
       exit();
     }
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "411: SQL query error: ".mysqli_error($con)."\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "411: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(411, 'sql query error', mysqli_error($con));
     exit();
   }
@@ -1017,9 +1050,11 @@ if ($requesttype == 'apikey') {
   if ($data['user']) {
     $userid = filter_var($data['user'], FILTER_SANITIZE_SPECIAL_CHARS);
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "408: No userid presented\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "408: No userid presented\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(408, 'need a user to create this key for');
     exit();
   }
@@ -1034,9 +1069,11 @@ if ($requesttype == 'apikey') {
       }
     }
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "409: SQL query error: ".mysqli_error($con)."\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "409: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(409, 'sql query error', mysqli_error($con));
     exit();
   }
@@ -1044,9 +1081,11 @@ if ($requesttype == 'apikey') {
   if ($apikey !== 0) {
     $apikeydata = array("apikey" => $apikey, "new" => false);
     echo json_encode($apikeydata);
-    $log = file_get_contents($logfile);
-    $log .= "Success, all done\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "Success, all done\n";
+      file_put_contents($logfile, $log);
+    }
     exit();
   } else {
     $newapikey = sha1($userid);
@@ -1054,14 +1093,18 @@ if ($requesttype == 'apikey') {
     if (mysqli_query($con, $addapikeyquery)){
       $apikeydata = array("apikey" => $newapikey, "new" => true);
       echo json_encode($apikeydata);
-      $log = file_get_contents($logfile);
-      $log .= "Success, all done\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
       exit();
     } else {
-      $log = file_get_contents($logfile);
-      $log .= "410: SQL query error: ".$userid." / ".$newapikey." ".mysqli_error($con)."\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "410: SQL query error: ".$userid." / ".$newapikey." ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
       json_response(410, 'sql query error', mysqli_error($con));
       exit();
     }
@@ -1094,21 +1137,27 @@ if ($requesttype == 'uptodate') {
       }
       $uptodatedata = array("uptodate" => $uptodate);
       echo json_encode($uptodatedata);
-      $log = file_get_contents($logfile);
-      $log .= "Success, all done\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
       exit();
     } else {
-      $log = file_get_contents($logfile);
-      $log .= "414: No data: ".mysqli_error($con)."\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "414: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
       json_response(414, 'No data', mysqli_error($con));
       exit();
     }
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "413: SQL query error: ".mysqli_error($con)."\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "413: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(413, 'sql query error', mysqli_error($con));
     exit();
   }
@@ -1142,7 +1191,7 @@ influence
 {
   {
     "timestamp":"000",
-    "systemaddres":"asdasd",
+    "systemaddress":"asdasd",
     "systemname":"asdasd",
     "factionname"="dsadsa",
     "influence"="conflict",
@@ -1152,7 +1201,7 @@ influence
 */
 if ($requesttype == 'influence') {
   $reportdata = array();
-  $influencequery = "SELECT timestamp, StarSystem, SystemAddress, rewardfaction, rewardtotal, rewardtrend FROM act_snapshot_missionrewards WHERE tickid = '$newtickid'";
+  $influencequery = "SELECT timestamp, StarSystem, SystemAddress, rewardfaction, rewardtotal, rewardtrend FROM act_snapshot_missionrewards WHERE tickid = '$newtickid' ORDER BY StarSystem ASC, rewardfaction ASC";
 
   if ($influenceresult = mysqli_query($con, $influencequery)){
     if (mysqli_num_rows($influenceresult) > 0) {
@@ -1164,37 +1213,42 @@ if ($requesttype == 'influence') {
         $infrewardtotal = $row['rewardtotal'];
         $infrewardtrend = $row['rewardtrend'];
 
-        if ($infrewardsystem == '' || $infrewardsystem == 'Unknown') {
-          $infrewardsystem = 'Unknown: address '.$infrewardaddress;
+        if ($infrewardsystem != '' && $infrewardsystem != 'Unknown' && $infrewardsystem != NULL) {
+          $reportdata[] = array(
+            "timestamp" => $infrewardtimestamp, 
+            "systemname" => $infrewardsystem, 
+            "factionname" => $infrewardfaction, 
+            "influence" => $infrewardtotal, 
+            "direction" => $infrewardtrend
+          );
         }
-        $reportdata[] = array(
-          "timestamp" => $infrewardtimestamp, 
-          "systemname" => $infrewardsystem, 
-          "factionname" => $infrewardfaction, 
-          "influence" => $infrewardtotal, 
-          "direction" => $infrewardtrend
-        );
       }
 
 
 
       echo json_encode($reportdata);
-      $log = file_get_contents($logfile);
-      $log .= "Success, all done\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
       exit();
 
     } else {
-      $log = file_get_contents($logfile);
-      $log .= "416: No data: ".mysqli_error($con)."\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "416: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
       json_response(416, 'No data', mysqli_error($con));
       exit();
     }
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "415: SQL query error: ".mysqli_error($con)."\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "415: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(415, 'sql query error', mysqli_error($con));
     exit();
   }
@@ -1205,7 +1259,7 @@ if ($requesttype == 'influence') {
 myinfluence
 {
   {
-    "timestamp":"000",
+    "lastupdate":"000",
     "systemaddress":"asdasd",
     "systemname":"asdasd",
     "factionname"="dsadsa",
@@ -1228,6 +1282,7 @@ if ($requesttype == 'myinfluence') {
         }
       }
       $systemsarray = array_unique($systemsarray);
+      sort($systemsarray);
       $factionsarray = array();
       foreach ($systemsarray as $infsystemaddress) {
         $influencesystemfactionsquery = "SELECT faction1address, faction1name, faction2address, faction2name FROM data_missionrewards WHERE timestamp > '$newtick' AND userid = '$checkid' AND (faction1address = '$infsystemaddress' || faction2address = '$infsystemaddress')";
@@ -1240,6 +1295,7 @@ if ($requesttype == 'myinfluence') {
               }
             }
             $factionsarray = array_unique($factionsarray);
+            sort($factionsarray);
             
             foreach ($factionsarray as $inffactionname) {
               $total = 0;
@@ -1265,39 +1321,583 @@ if ($requesttype == 'myinfluence') {
                   
                 }
               }
-              $reportdata[] = array(
-                "lastupdate" => $inftimestamp, 
-                "systemaddress" => $infsystemaddress, 
-                "systemname" => $infsystemname, 
-                "factionname" => $inffactionname, 
-                "influence" => $total
-              );
+              if ($infsystemname != '' && $infsystemname != 'Unknown') {
+                $reportdata[] = array(
+                  "lastupdate" => $inftimestamp, 
+                  "systemaddress" => $infsystemaddress, 
+                  "systemname" => $infsystemname, 
+                  "factionname" => $inffactionname, 
+                  "influence" => $total
+                );
+              }
             }
           }
         }
       }
 
       echo json_encode($reportdata);
-      $log = file_get_contents($logfile);
-      $log .= "Success, all done\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
       exit();
 
     } else {
-      $log = file_get_contents($logfile);
-      $log .= "418: No data: ".mysqli_error($con)."\n";
-      file_put_contents($logfile, $log);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "418: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
       json_response(418, 'No data', mysqli_error($con));
       exit();
     }
   } else {
-    $log = file_get_contents($logfile);
-    $log .= "417: SQL query error: ".mysqli_error($con)."\n";
-    file_put_contents($logfile, $log);
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "417: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
     json_response(417, 'sql query error', mysqli_error($con));
     exit();
   }
 }
+
+
+
+
+
+
+/*
+explorationdata
+{
+  {
+    "lastupdate":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "stationname"="dsadsa",
+    "base"=0,
+    "bonus"=0,
+    "total"=0,
+    "systemcount"=0,
+    "bodycount"=0
+  }
+}
+*/
+if ($requesttype == 'explorationdata' || $requesttype == 'exploration') {
+  $reportdata = array();
+  $explorationdataquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, base, bonus, total, systemcount, bodycount FROM act_snapshot_explorationdata WHERE tickid = '$newtickid' ORDER BY StarSystem ASC, StationName ASC, timestamp ASC";
+
+  if ($explorationdataresult = mysqli_query($con, $explorationdataquery)){
+    if (mysqli_num_rows($explorationdataresult) > 0) {
+      while($row = mysqli_fetch_array($explorationdataresult, MYSQLI_ASSOC)) {
+        $explotimestamp = $row['timestamp'];
+        $explosystem = addslashes($row['StarSystem']);
+        $exploaddress = $row['SystemAddress'];
+        $explostation = addslashes($row['StationName']);
+        $explobase = $row['base'];
+        $explobonus = $row['bonus'];
+        $explototal = $row['total'];
+        $explosystems = $row['systemcount'];
+        $explobodies = $row['bodycount'];
+
+        $reportdata[] = array(
+          "lastupdate" => $explotimestamp, 
+          "systemname" => $explosystem, 
+          "systemaddress" => $exploaddress, 
+          "stationname" => $explostation, 
+          "base" => $explobase, 
+          "bonus" => $explobonus, 
+          "total" => $explototal, 
+          "systems" => $explosystems, 
+          "bodies" => $explobodies, 
+        );
+      }
+
+      echo json_encode($reportdata);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
+      exit();
+
+    } else {
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "420: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
+      json_response(420, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "419: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
+    json_response(419, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+/*
+myexplorationdata
+{
+  {
+    "lastupdate":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "stationname"="dsadsa",
+    "base"=0,
+    "bonus"=0,
+    "total"=0,
+    "systemcount"=0,
+    "bodycount"=0
+  }
+}
+*/
+if ($requesttype == 'myexplorationdata' || $requesttype == 'myexploration') {
+  $reportdata = array();
+  $explorationdataquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, base, bonus, total, systemcount, bodycount FROM data_explorationdata WHERE timestamp > '$newtick' AND userid = '$checkid' ORDER BY StarSystem ASC, StationName ASC, timestamp ASC";
+
+  if ($explorationdataresult = mysqli_query($con, $explorationdataquery)){
+    if (mysqli_num_rows($explorationdataresult) > 0) {
+      while($row = mysqli_fetch_array($explorationdataresult, MYSQLI_ASSOC)) {
+        $explotimestamp = $row['timestamp'];
+        $explosystem = addslashes($row['StarSystem']);
+        $exploaddress = $row['SystemAddress'];
+        $explostation = addslashes($row['StationName']);
+        $explobase = $row['base'];
+        $explobonus = $row['bonus'];
+        $explototal = $row['total'];
+        $explosystems = $row['systemcount'];
+        $explobodies = $row['bodycount'];
+
+        $reportdata[] = array(
+          "lastupdate" => $explotimestamp, 
+          "systemname" => $explosystem, 
+          "systemaddress" => $exploaddress, 
+          "stationname" => $explostation, 
+          "base" => $explobase, 
+          "bonus" => $explobonus, 
+          "total" => $explototal, 
+          "systems" => $explosystems, 
+          "bodies" => $explobodies, 
+        );
+      }
+
+      echo json_encode($reportdata);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
+      exit();
+
+    } else {
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "422: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
+      json_response(422, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "421: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
+    json_response(421, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+
+/*
+purchases
+{
+  {
+    "lastupdate":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "stationname"="dsadsa",
+    "commodity"="asdasdas",
+    "amount"=0,
+    "value"=0,
+    "total"=0,
+  }
+}
+*/
+if ($requesttype == 'purchase' || $requesttype == 'purchases') {
+  $reportdata = array();
+  $purchasedataquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, commodity, amount, value, total FROM act_snapshot_cargopurchases WHERE tickid = '$newtickid' ORDER BY StarSystem ASC, StationName ASC, timestamp ASC";
+
+  if ($purchasedataresult = mysqli_query($con, $purchasedataquery)){
+    if (mysqli_num_rows($purchasedataresult) > 0) {
+      while($row = mysqli_fetch_array($purchasedataresult, MYSQLI_ASSOC)) {
+        $purchasetimestamp = $row['timestamp'];
+        $purchasesystem = addslashes($row['StarSystem']);
+        $purchaseaddress = $row['SystemAddress'];
+        $purchasestation = addslashes($row['StationName']);
+        $purchasecommodity = addslashes($row['commodity']);
+        $purchaseamount = $row['amount'];
+        $purchasevalue = $row['value'];
+        $purchasetotal = $row['total'];
+
+        $reportdata[] = array(
+          "lastupdate" => $purchasetimestamp, 
+          "systemname" => $purchasesystem, 
+          "systemaddress" => $purchaseaddress, 
+          "stationname" => $purchasestation, 
+          "commodity" => $purchasecommodity, 
+          "amount" => $purchaseamount, 
+          "value" => $purchasevalue, 
+          "total" => $purchasetotal
+        );
+      }
+
+      echo json_encode($reportdata);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
+      exit();
+
+    } else {
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "424: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
+      json_response(424, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "423: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
+    json_response(423, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+/*
+mypurchases
+{
+  {
+    "lastupdate":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "stationname"="dsadsa",
+    "commodity"="asdasdas",
+    "amount"=0,
+    "value"=0,
+    "total"=0,
+  }
+}
+*/
+
+if ($requesttype == 'mypurchases') {
+  $reportdata = array();
+  $marketarray = array();
+  $marketquery = "SELECT MarketID FROM data_cargopurchases WHERE timestamp > '$newtick' AND userid = '$checkid'";
+  if ($marketresult = mysqli_query($con, $marketquery)){
+    if (mysqli_num_rows($marketresult) > 0) {
+      while($row = mysqli_fetch_array($marketresult, MYSQLI_ASSOC)) {
+        $marketarray[] = $row['MarketID'];
+      }
+    }
+  }
+  $marketarray = array_unique($marketarray);
+
+  $commodityarray = array();
+  foreach ($marketarray as $MarketID) {
+    $commodityquery = "SELECT commodity FROM data_cargopurchases WHERE timestamp > '$newtick' AND userid = '$checkid' AND MarketID = '$MarketID'";
+    if ($commodityresult = mysqli_query($con, $commodityquery)){
+      if (mysqli_num_rows($commodityresult) > 0) {
+        while($row2 = mysqli_fetch_array($commodityresult, MYSQLI_ASSOC)) {
+          $commodityarray[] = $row2['commodity'];
+        }
+      }
+    }
+    $commodityarray = array_unique($commodityarray);
+    foreach ($commodityarray as $commodity) {
+      $purchasedataquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, commodity, amount, value, total FROM data_cargopurchases WHERE timestamp > '$newtick' AND userid = '$checkid' AND MarketID = '$MarketID' AND commodity = '$commodity' ORDER BY StarSystem ASC, StationName ASC, timestamp ASC";
+      if ($purchasedataresult = mysqli_query($con, $purchasedataquery)){
+        if (mysqli_num_rows($purchasedataresult) > 0) {
+          $purchasetimestamp = 0;
+          $purchasesystem = '';
+          $purchaseaddress = '';
+          $purchasestation = '';
+          $purchasecommodity = '';
+          $purchaseamount = 0;
+          $purchasevalue = 0;
+          $purchasetotal = 0;
+          while($row3 = mysqli_fetch_array($purchasedataresult, MYSQLI_ASSOC)) {
+            $purchasetimestamp = $row3['timestamp'];
+            $purchasesystem = addslashes($row3['StarSystem']);
+            $purchaseaddress = $row3['SystemAddress'];
+            $purchasestation = addslashes($row3['StationName']);
+            $purchasecommodity = addslashes($row3['commodity']);
+            $purchaseamount = $purchaseamount + $row3['amount'];
+            $purchasevalue = $purchasevalue + $row3['value'];
+            $purchasetotal = $purchasetotal + $row3['total'];
+          }
+          $reportdata[] = array(
+            "lastupdate" => $purchasetimestamp, 
+            "systemname" => $purchasesystem, 
+            "systemaddress" => $purchaseaddress, 
+            "stationname" => $purchasestation, 
+            "commodity" => $purchasecommodity, 
+            "amount" => $purchaseamount, 
+            "value" => $purchasevalue, 
+            "total" => $purchasetotal
+          );
+        } else {
+          if ($apilogoutput) {
+            $log = file_get_contents($logfile);
+            $log .= "430: No data: ".mysqli_error($con)."\n";
+            file_put_contents($logfile, $log);
+          }
+          json_response(430, 'No data', mysqli_error($con));
+          exit();
+        }
+      } else {
+        if ($apilogoutput) {
+          $log = file_get_contents($logfile);
+          $log .= "429: SQL query error: ".mysqli_error($con)."\n";
+          file_put_contents($logfile, $log);
+        }
+        json_response(429, 'sql query error', mysqli_error($con));
+        exit();
+      }
+    }
+  }
+  echo json_encode($reportdata);
+  if ($apilogoutput) {
+    $log = file_get_contents($logfile);
+    $log .= "Success, all done\n";
+    file_put_contents($logfile, $log);
+  }
+  exit();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+deliveries
+{
+  {
+    "lastupdate":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "stationname"="dsadsa",
+    "commodity"="asdasdas",
+    "amount"=0,
+    "value"=0,
+    "profit"=0,
+  }
+}
+*/
+if ($requesttype == 'deliveries') {
+  $reportdata = array();
+
+  $deliverydataquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, commodity, amount, value, profit FROM act_snapshot_cargodeliveries WHERE tickid = '$newtickid' ORDER BY StarSystem ASC, StationName ASC, timestamp ASC";
+
+  if ($deliverydataresult = mysqli_query($con, $deliverydataquery)){
+    if (mysqli_num_rows($deliverydataresult) > 0) {
+      while($row = mysqli_fetch_array($deliverydataresult, MYSQLI_ASSOC)) {
+        $deliverytimestamp = $row['timestamp'];
+        $deliverysystem = addslashes($row['StarSystem']);
+        $deliveryaddress = $row['SystemAddress'];
+        $deliverystation = addslashes($row['StationName']);
+        $deliverycommodity = addslashes($row['commodity']);
+        $deliveryamount = $row['amount'];
+        $deliveryvalue = $row['value'];
+        $deliveryprofit = $row['profit'];
+
+        $reportdata[] = array(
+          "lastupdate" => $deliverytimestamp, 
+          "systemname" => $deliverysystem, 
+          "systemaddress" => $deliveryaddress, 
+          "stationname" => $deliverystation, 
+          "commodity" => $deliverycommodity, 
+          "amount" => $deliveryamount, 
+          "value" => $deliveryvalue, 
+          "profit" => $deliveryprofit
+        );
+      }
+
+      echo json_encode($reportdata);
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "Success, all done\n";
+        file_put_contents($logfile, $log);
+      }
+      exit();
+
+    } else {
+      if ($apilogoutput) {
+        $log = file_get_contents($logfile);
+        $log .= "428: No data: ".mysqli_error($con)."\n";
+        file_put_contents($logfile, $log);
+      }
+      json_response(428, 'No data', mysqli_error($con));
+      exit();
+    }
+  } else {
+    if ($apilogoutput) {
+      $log = file_get_contents($logfile);
+      $log .= "427: SQL query error: ".mysqli_error($con)."\n";
+      file_put_contents($logfile, $log);
+    }
+    json_response(427, 'sql query error', mysqli_error($con));
+    exit();
+  }
+}
+
+
+/*
+mydeliveries
+{
+  {
+    "lastupdate":"000",
+    "systemaddress":"asdasd",
+    "systemname":"asdasd",
+    "stationname"="dsadsa",
+    "commodity"="asdasdas",
+    "amount"=0,
+    "value"=0,
+    "profit"=0,
+  }
+}
+*/
+if ($requesttype == 'mydeliveries') {
+  $reportdata = array();
+  $marketarray = array();
+  $marketquery = "SELECT MarketID FROM data_cargodeliveries WHERE timestamp > '$newtick' AND userid = '$checkid'";
+  if ($marketresult = mysqli_query($con, $marketquery)){
+    if (mysqli_num_rows($marketresult) > 0) {
+      while($row = mysqli_fetch_array($marketresult, MYSQLI_ASSOC)) {
+        $marketarray[] = $row['MarketID'];
+      }
+    }
+  }
+  $marketarray = array_unique($marketarray);
+
+  $commodityarray = array();
+  foreach ($marketarray as $MarketID) {
+    $commodityquery = "SELECT commodity FROM data_cargodeliveries WHERE timestamp > '$newtick' AND userid = '$checkid' AND MarketID = '$MarketID'";
+    if ($commodityresult = mysqli_query($con, $commodityquery)){
+      if (mysqli_num_rows($commodityresult) > 0) {
+        while($row2 = mysqli_fetch_array($commodityresult, MYSQLI_ASSOC)) {
+          $commodityarray[] = $row2['commodity'];
+        }
+      }
+    }
+    $commodityarray = array_unique($commodityarray);
+    foreach ($commodityarray as $commodity) {
+      $deliverydataquery = "SELECT timestamp, StarSystem, SystemAddress, StationName, commodity, amount, value, profit FROM data_cargodeliveries WHERE timestamp > '$newtick' AND userid = '$checkid' AND MarketID = '$MarketID' AND commodity = '$commodity' ORDER BY StarSystem ASC, StationName ASC, timestamp ASC";
+      if ($deliverydataresult = mysqli_query($con, $deliverydataquery)){
+        if (mysqli_num_rows($deliverydataresult) > 0) {
+          $deliverytimestamp = 0;
+          $deliverysystem = '';
+          $deliveryaddress = '';
+          $deliverystation = '';
+          $deliverycommodity = '';
+          $deliveryamount = 0;
+          $deliveryvalue = 0;
+          $deliveryprofit = 0;
+          while($row3 = mysqli_fetch_array($deliverydataresult, MYSQLI_ASSOC)) {
+            $deliverytimestamp = $row3['timestamp'];
+            $deliverysystem = addslashes($row3['StarSystem']);
+            $deliveryaddress = $row3['SystemAddress'];
+            $deliverystation = addslashes($row3['StationName']);
+            $deliverycommodity = addslashes($row3['commodity']);
+            $deliveryamount = $deliveryamount + $row3['amount'];
+            $deliveryvalue = $deliveryvalue + $row3['value'];
+            $deliveryprofit = $deliveryprofit + $row3['profit'];
+          }
+          $reportdata[] = array(
+            "lastupdate" => $deliverytimestamp, 
+            "systemname" => $deliverysystem, 
+            "systemaddress" => $deliveryaddress, 
+            "stationname" => $deliverystation, 
+            "commodity" => $deliverycommodity, 
+            "amount" => $deliveryamount, 
+            "value" => $deliveryvalue, 
+            "profit" => $deliveryprofit
+          );
+        } else {
+          if ($apilogoutput) {
+            $log = file_get_contents($logfile);
+            $log .= "430: No data: ".mysqli_error($con)."\n";
+            file_put_contents($logfile, $log);
+          }
+          json_response(430, 'No data', mysqli_error($con));
+          exit();
+        }
+      } else {
+        if ($apilogoutput) {
+          $log = file_get_contents($logfile);
+          $log .= "429: SQL query error: ".mysqli_error($con)."\n";
+          file_put_contents($logfile, $log);
+        }
+        json_response(429, 'sql query error', mysqli_error($con));
+        exit();
+      }
+    }
+  }
+  echo json_encode($reportdata);
+  if ($apilogoutput) {
+    $log = file_get_contents($logfile);
+    $log .= "Success, all done\n";
+    file_put_contents($logfile, $log);
+  }
+  exit();
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
